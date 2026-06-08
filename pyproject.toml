@@ -1,0 +1,14 @@
+[project]
+name = "indoor-heat-2026"
+version = "0.1.0"
+description = "MIT indoor heat resilience 2026 — documentation and dashboard"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5.40",
+    "mkdocs-git-revision-date-localized-plugin>=1.2.9",
+]
+
+[tool.uv]
+package = false
