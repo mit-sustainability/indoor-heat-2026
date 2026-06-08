@@ -1,0 +1,50 @@
+site_name: MIT Indoor Heat Resilience 2026
+site_url: https://mit-sustainability.github.io/indoor-heat-2026/
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  language: en
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+      primary: indigo
+      accent: blue
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+      primary: light blue
+      accent: cyan
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      type: date
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - attr_list
+  - tables
+
+nav:
+  - Home: index.md
+  - About: about.md
+
+copyright: "&copy; 2026 MIT Office of Sustainability"
