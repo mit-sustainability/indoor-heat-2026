@@ -8,18 +8,20 @@ __pycache__/
 
 # Node / Next.js
 node_modules/
-frontend/indoor-heat-project/
 frontend/node_modules/
+frontend/indoor-heat-project/frontend/node_modules/
+frontend/indoor-heat-project/frontend/dist/
 frontend/.next/
 frontend/out/
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+*.tsbuildinfo
 
 # Keep lock files
 *.lock
 !uv.lock
-!frontend/package-lock.json
+!**/package-lock.json
 
 # macOS
 .DS_Store
