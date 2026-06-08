@@ -1,0 +1,29 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+.venv/
+
+# MkDocs build output
+/site
+
+# Node / Next.js
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Keep lock files
+*.lock
+!uv.lock
+!frontend/package-lock.json
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
