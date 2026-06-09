@@ -27,8 +27,8 @@ describe('loadReadings', () => {
     const result = await loadReadings();
 
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe('/data/manifest.json');
-    expect((fetch as ReturnType<typeof vi.fn>).mock.calls[1][0]).toBe('/data/readings_20260609T120000Z.json');
+    expect(fetch).toHaveBeenNthCalledWith(1, '/data/manifest.json');
+    expect(fetch).toHaveBeenNthCalledWith(2, '/data/readings_20260609T120000Z.json');
     expect(result).toEqual(mockReadings);
   });
 

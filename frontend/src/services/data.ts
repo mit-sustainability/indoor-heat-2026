@@ -1,8 +1,6 @@
-interface Manifest {
+export interface Manifest {
   generated_at: string;
-  files: {
-    readings: string;
-  };
+  files: Record<string, string>;
 }
 
 export interface SensorReading {
@@ -20,5 +18,5 @@ export async function loadReadings(): Promise<SensorReading[]> {
 
   const readingsRes = await fetch(manifest.files.readings);
   if (!readingsRes.ok) throw new Error(`readings ${readingsRes.status}`);
-  return readingsRes.json();
+  return readingsRes.json() as Promise<SensorReading[]>;
 }
