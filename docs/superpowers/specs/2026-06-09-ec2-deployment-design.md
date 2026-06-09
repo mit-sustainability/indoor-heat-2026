@@ -73,7 +73,7 @@ indoor-heat-2026/
 ## EC2 Directory Layout
 
 ```
-/var/www/student-app/
+/var/www/indoor-heat-2026/
 ├── app/      ← frontend build, written by GitHub Actions via rsync
 │   ├── index.html
 │   ├── assets/           ← Vite-hashed JS/CSS bundles
@@ -95,7 +95,7 @@ Served on a dedicated port (e.g. 8080). Key behaviors: React Router requires `tr
 ```nginx
 server {
     listen 8080;
-    root /var/www/student-app/app;
+    root /var/www/indoor-heat-2026/app;
     index index.html;
 
     # React Router: non-file URLs return index.html
@@ -105,7 +105,7 @@ server {
 
     # Data files: served from Dagster's directory
     location /data/ {
-        alias /var/www/student-app/data/;
+        alias /var/www/indoor-heat-2026/data/;
         add_header Cache-Control "no-cache";
     }
 
@@ -140,13 +140,13 @@ Dagster container runs as `uid=0 (root)`. Files written via the volume mount lan
 ### One-time setup on EC2
 
 ```bash
-sudo mkdir -p /var/www/student-app/app
-sudo mkdir -p /var/www/student-app/data
-sudo chmod 755 /var/www/student-app/data
+sudo mkdir -p /var/www/indoor-heat-2026/app
+sudo mkdir -p /var/www/indoor-heat-2026/data
+sudo chmod 755 /var/www/indoor-heat-2026/data
 
 # app/ owned by the deploy SSH user so rsync can write
-sudo chown -R ubuntu:www-data /var/www/student-app/app
-sudo chmod -R 755 /var/www/student-app/app
+sudo chown -R ubuntu:www-data /var/www/indoor-heat-2026/app
+sudo chmod -R 755 /var/www/indoor-heat-2026/app
 ```
 
 ### Dagster docker-compose.yml (other repo)
@@ -155,16 +155,16 @@ sudo chmod -R 755 /var/www/student-app/app
 services:
   dagster:
     volumes:
-      - /var/www/student-app/data:/opt/dagster/output
+      - /var/www/indoor-heat-2026/data:/opt/dagster/output
 ```
 
-Dagster writes to `/opt/dagster/output/` inside the container; files appear at `/var/www/student-app/data/` on the host.
+Dagster writes to `/opt/dagster/output/` inside the container; files appear at `/var/www/indoor-heat-2026/data/` on the host.
 
 ---
 
 ## GitHub Actions Workflow
 
-Replaces the existing GitHub Pages + Next.js workflow. Triggers on pushes to `main` that touch `frontend/**`. Builds Vite, rsyncs `dist/` to `/var/www/student-app/app/` via SSH.
+Replaces the existing GitHub Pages + Next.js workflow. Triggers on pushes to `main` that touch `frontend/**`. Builds Vite, rsyncs `dist/` to `/var/www/indoor-heat-2026/app/` via SSH.
 
 ```yaml
 name: Deploy Frontend
@@ -199,7 +199,7 @@ jobs:
           rsync -avz --delete \
             -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
             frontend/dist/ \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/student-app/app/
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/indoor-heat-2026/app/
           rm /tmp/deploy_key
 ```
 
