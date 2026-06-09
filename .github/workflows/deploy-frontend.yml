@@ -9,10 +9,13 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
@@ -26,12 +29,21 @@ jobs:
         run: npm run build
         working-directory: frontend
 
-      - name: Deploy to EC2
+      - name: Write SSH key
         run: |
           echo "${{ secrets.EC2_SSH_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
+
+      - name: Deploy to EC2
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
           rsync -avz --delete \
             -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
             frontend/dist/ \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/indoor-heat-2026/app/
-          rm /tmp/deploy_key
+            "${EC2_USER}@${EC2_HOST}:/var/www/indoor-heat-2026/app/"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/deploy_key
