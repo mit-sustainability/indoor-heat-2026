@@ -1,0 +1,24 @@
+interface Manifest {
+  generated_at: string;
+  files: {
+    readings: string;
+  };
+}
+
+export interface SensorReading {
+  room: string;
+  floor: number;
+  timestamp: string;
+  temperature_f: number;
+  humidity_pct: number;
+}
+
+export async function loadReadings(): Promise<SensorReading[]> {
+  const manifestRes = await fetch('/data/manifest.json');
+  if (!manifestRes.ok) throw new Error(`manifest ${manifestRes.status}`);
+  const manifest: Manifest = await manifestRes.json();
+
+  const readingsRes = await fetch(manifest.files.readings);
+  if (!readingsRes.ok) throw new Error(`readings ${readingsRes.status}`);
+  return readingsRes.json();
+}
