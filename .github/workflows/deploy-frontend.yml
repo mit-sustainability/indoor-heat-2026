@@ -30,8 +30,10 @@ jobs:
         working-directory: frontend
 
       - name: Write SSH key
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > /tmp/deploy_key
+          echo "$EC2_SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
       - name: Deploy to EC2
