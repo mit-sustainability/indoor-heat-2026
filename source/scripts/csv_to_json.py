@@ -65,6 +65,7 @@ def write_atomic(path: Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w") as f:
             f.write(content)
+        os.chmod(tmp, 0o644)
         Path(tmp).rename(path)
     except Exception:
         Path(tmp).unlink(missing_ok=True)
