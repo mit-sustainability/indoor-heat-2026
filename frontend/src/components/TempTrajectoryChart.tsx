@@ -14,17 +14,17 @@ interface Props {
   room: Reading[];
   control: Reading[] | null;
   courtyard: Reading[];
+  penthouse: Reading[];
 }
 
-// Recharts wants flat rows keyed by timestamp.
 function buildSeries(props: Props) {
   const byTime = new Map<
     string,
-    { time: string; room?: number; control?: number; courtyard?: number }
+    { time: string; room?: number; control?: number; courtyard?: number; penthouse?: number }
   >();
   const upsert = (
     list: Reading[],
-    key: "room" | "control" | "courtyard",
+    key: "room" | "control" | "courtyard" | "penthouse",
   ) => {
     for (const r of list) {
       const row = byTime.get(r.timestamp) ?? { time: r.timestamp };
@@ -35,6 +35,7 @@ function buildSeries(props: Props) {
   upsert(props.room, "room");
   if (props.control) upsert(props.control, "control");
   upsert(props.courtyard, "courtyard");
+  upsert(props.penthouse, "penthouse");
   return Array.from(byTime.values()).sort((a, b) =>
     a.time < b.time ? -1 : 1,
   );
@@ -88,15 +89,28 @@ export default function TempTrajectoryChart(props: Props) {
               name="Indoor control"
             />
           )}
-          <Line
-            type="monotone"
-            dataKey="courtyard"
-            stroke="#65a30d"
-            strokeWidth={1.5}
-            strokeDasharray="2 3"
-            dot={false}
-            name="Courtyard (outdoor)"
-          />
+          {props.courtyard.length > 0 && (
+            <Line
+              type="monotone"
+              dataKey="courtyard"
+              stroke="#65a30d"
+              strokeWidth={1.5}
+              strokeDasharray="2 3"
+              dot={false}
+              name="Courtyard (outdoor)"
+            />
+          )}
+          {props.penthouse.length > 0 && (
+            <Line
+              type="monotone"
+              dataKey="penthouse"
+              stroke="#d97706"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              dot={false}
+              name="Penthouse (outdoor)"
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>

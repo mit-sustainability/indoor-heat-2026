@@ -71,7 +71,7 @@ function mean(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
-const INTERVENTION_SETS: Record<number, Intervention[]> = {
+export const INTERVENTION_SETS: Record<number, Intervention[]> = {
   304: [],
   309: [
     { label: "Box fan", emoji: "💨", description: "Medium speed, toward window" },

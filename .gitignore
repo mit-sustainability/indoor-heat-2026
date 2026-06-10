@@ -6,6 +6,10 @@ __pycache__/
 # MkDocs build output
 /site
 
+# Local data export (written by csv_to_json.py and Dagster in production)
+/output
+/frontend/public/data
+
 # Node / Next.js
 node_modules/
 frontend/node_modules/

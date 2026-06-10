@@ -1,10 +1,16 @@
 import { Link } from "react-router-dom";
 import type { FloorNumber } from "../config/floors";
-import { floorAverages } from "../data/mockData";
 import { TEMP_SCALE_GRADIENT } from "../lib/colorScale";
+
+interface FloorStats {
+  avgTempC: number | null;
+  avgHumidity: number | null;
+  lastUpdated: string | null;
+}
 
 interface Props {
   floor: FloorNumber;
+  stats: FloorStats;
 }
 
 function formatTimestamp(iso: string | null): string {
@@ -18,8 +24,8 @@ function formatTimestamp(iso: string | null): string {
   });
 }
 
-export default function SidePanel({ floor }: Props) {
-  const avg = floorAverages(floor);
+export default function SidePanel({ floor, stats }: Props) {
+  const avg = stats;
 
   return (
     <aside className="flex h-full w-72 flex-col gap-6 bg-neutral-950 px-6 py-5 text-neutral-100">
