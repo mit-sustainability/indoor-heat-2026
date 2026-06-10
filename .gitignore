@@ -6,19 +6,25 @@ __pycache__/
 # MkDocs build output
 /site
 
+# Local data export (written by csv_to_json.py and Dagster in production)
+/output
+/frontend/public/data
+
 # Node / Next.js
 node_modules/
 frontend/node_modules/
+frontend/dist/
 frontend/.next/
 frontend/out/
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+*.tsbuildinfo
 
 # Keep lock files
 *.lock
 !uv.lock
-!frontend/package-lock.json
+!**/package-lock.json
 
 # macOS
 .DS_Store

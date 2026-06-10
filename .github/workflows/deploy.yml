@@ -36,17 +36,6 @@ jobs:
       - name: Build MkDocs site
         run: uv run mkdocs build --strict
 
-      - name: Build Next.js static export (skip if not ready)
-        run: |
-          if [ -f frontend/package.json ]; then
-            npm --prefix frontend ci
-            npm --prefix frontend run build
-            mkdir -p site/app
-            cp -r frontend/out/. site/app/
-          else
-            echo "frontend/package.json not found — skipping Next.js build"
-          fi
-
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
