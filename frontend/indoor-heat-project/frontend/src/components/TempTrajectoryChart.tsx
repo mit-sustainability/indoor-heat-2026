@@ -16,7 +16,6 @@ interface Props {
   courtyard: Reading[];
 }
 
-// Recharts wants flat rows keyed by timestamp.
 function buildSeries(props: Props) {
   const byTime = new Map<
     string,

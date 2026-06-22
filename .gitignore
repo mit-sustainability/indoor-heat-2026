@@ -6,6 +6,16 @@ __pycache__/
 # MkDocs build output
 /site
 
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Local tooling (not shared via git)
+.cursor/
+.stitch/
+
 # Node / Next.js
 node_modules/
 frontend/node_modules/

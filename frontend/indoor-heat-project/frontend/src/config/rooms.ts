@@ -7,10 +7,9 @@
 import type { FloorNumber } from "./floors";
 
 export type Orientation =
-  | "North-east facing"
-  | "North-west facing"
-  | "South-east facing"
-  | "South-west facing";
+  | "East facing"
+  | "South facing"
+  | "West facing";
 
 export type SensorRole = "room" | "indoor_control" | "outdoor_courtyard";
 
@@ -37,18 +36,31 @@ function room(
   return { room, floor, ...pos, orientation, role: "room" };
 }
 
+function courtyardSensor(
+  room: number,
+  floor: FloorNumber,
+  pos: { xNorm: number; yNorm: number },
+): RoomMeta {
+  return { room, floor, ...pos, orientation: "South facing", role: "outdoor_courtyard" };
+}
+
+// Center of the open courtyard on the floor 1 plan (both towers).
+const POS_COURTYARD_F1 = { xNorm: 0.400, yNorm: 0.440 };
+
 export const ROOMS: RoomMeta[] = [
+  // Floor 1 — outdoor courtyard reference sensor
+  courtyardSensor(199, 1, POS_COURTYARD_F1),
   // Floor 3
-  room(304, 3, POS_X04, "North-east facing"),
-  room(309, 3, POS_X09, "South-east facing"),
-  room(314, 3, POS_X14, "North-west facing"),
+  room(304, 3, POS_X04, "East facing"),
+  room(309, 3, POS_X09, "South facing"),
+  room(314, 3, POS_X14, "West facing"),
   // Floor 5
-  room(504, 5, POS_X04, "North-east facing"),
-  room(514, 5, POS_X14, "North-west facing"),
+  room(504, 5, POS_X04, "East facing"),
+  room(514, 5, POS_X14, "West facing"),
   // Floor 7
-  room(704, 7, POS_X04, "North-east facing"),
-  room(709, 7, POS_X09, "South-east facing"),
-  room(714, 7, POS_X14, "North-west facing"),
+  room(704, 7, POS_X04, "East facing"),
+  room(709, 7, POS_X09, "South facing"),
+  room(714, 7, POS_X14, "West facing"),
 ];
 
 export const CONTROL_ROOMS: Record<FloorNumber, number | null> = {
