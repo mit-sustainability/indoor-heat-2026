@@ -107,7 +107,22 @@ function buildRoomData(meta: RoomMeta, seed: number, baseTemp: number, baseHumid
   };
 }
 
+function buildRoomDataFromReadings(meta: RoomMeta, readings: Reading[]): RoomData {
+  const day = readings.filter(dayMask);
+  const night = readings.filter((r) => !dayMask(r));
+  return {
+    meta,
+    readings,
+    avgDaytimeC: +mean(day.map((r) => r.temperatureC)).toFixed(2),
+    avgNighttimeC: +mean(night.map((r) => r.temperatureC)).toFixed(2),
+    avgHumidity: +mean(readings.map((r) => r.humidityPct)).toFixed(1),
+    lastCollected: readings[readings.length - 1].timestamp,
+    interventions: [],
+  };
+}
+
 const BASE_TEMP_BY_FLOOR: Record<number, number> = {
+  1: 22.0,
   3: 24.0,
   5: 26.5,
   7: 28.0,
@@ -124,13 +139,26 @@ const ROOM_OFFSET: Record<number, number> = {
   714: 0.7,
 };
 
+export const COURTYARD_READINGS: Reading[] = generateReadings(22.0, 65, 8888).map((r) => ({
+  ...r,
+  temperatureC: +(r.temperatureC + Math.sin(((new Date(r.timestamp).getHours() - 6) / 24) * Math.PI * 2) * 3.5).toFixed(2),
+}));
+
 export const ROOM_DATA: Record<number, RoomData> = Object.fromEntries(
-  ROOMS.map((meta, i) => {
+  ROOMS.filter((meta) => meta.role === "room").map((meta, i) => {
     const base = BASE_TEMP_BY_FLOOR[meta.floor] ?? 25;
     const offset = ROOM_OFFSET[meta.room] ?? 1;
     return [meta.room, buildRoomData(meta, 100 + i * 17, base + offset, 52)];
   }),
 );
+
+const courtyardMeta = ROOMS.find((r) => r.role === "outdoor_courtyard");
+if (courtyardMeta) {
+  ROOM_DATA[courtyardMeta.room] = buildRoomDataFromReadings(
+    courtyardMeta,
+    COURTYARD_READINGS,
+  );
+}
 
 export const CONTROL_READINGS: Record<FloorNumber, Reading[] | null> = {
   1: null,
@@ -142,13 +170,8 @@ export const CONTROL_READINGS: Record<FloorNumber, Reading[] | null> = {
   7: generateReadings(27.5, 50, 7007),
 };
 
-export const COURTYARD_READINGS: Reading[] = generateReadings(22.0, 65, 8888).map((r) => ({
-  ...r,
-  temperatureC: +(r.temperatureC + Math.sin(((new Date(r.timestamp).getHours() - 6) / 24) * Math.PI * 2) * 3.5).toFixed(2),
-}));
-
 export function floorAverages(floor: FloorNumber) {
-  const rooms = ROOMS.filter((r) => r.floor === floor);
+  const rooms = ROOMS.filter((r) => r.floor === floor && r.role === "room");
   if (rooms.length === 0) {
     return { avgTempC: null, avgHumidity: null, lastUpdated: null };
   }

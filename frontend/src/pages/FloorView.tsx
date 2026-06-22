@@ -16,6 +16,19 @@ const PLAN_W = 2448;
 const PLAN_H = 1584;
 const PLAN_RATIO = PLAN_W / PLAN_H;
 
+const PLAN_STREET_LABEL =
+  "whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.2em] text-zinc-700 opacity-60";
+
+// Nudge labels: % inset from the top/bottom edge of the floor plan image.
+// (Tailwind spacing skips 17–19 — pb-17 etc. are invalid and get ignored.)
+const PLAN_LABEL_INSET = { top: "4.5%", bottom: "11.5%" };
+
+const PLAN_STREET_LABEL_POS = {
+  position: "absolute" as const,
+  left: "50%",
+  transform: "translateX(-50%)",
+};
+
 function parseFloor(raw: string | undefined): FloorNumber | null {
   if (!raw) return null;
   const n = Number(raw);
@@ -74,6 +87,14 @@ export default function FloorView() {
       <SidePanel floor={floor} stats={stats} />
 
       <main className="relative flex-1 overflow-hidden bg-neutral-100">
+        {rooms.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+            <p className="rounded-md bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow">
+              No sensors deployed on floor {floor}.
+            </p>
+          </div>
+        )}
+
         {/* Stage = available space (inset for breathing room). We measure
             this box, then place the plan + nodes in a child whose size is
             exactly the contain-rect of the floor plan PNG. */}
@@ -106,14 +127,28 @@ export default function FloorView() {
                 draggable={false}
               />
 
+              {/* Street labels — % inset from plan edges; edit PLAN_LABEL_INSET above. */}
+              <div className="pointer-events-none absolute inset-0 z-20">
+                <p
+                  className={PLAN_STREET_LABEL}
+                  style={{ ...PLAN_STREET_LABEL_POS, top: PLAN_LABEL_INSET.top }}
+                >
+                  Amherst Street
+                </p>
+                <p
+                  className={PLAN_STREET_LABEL}
+                  style={{
+                    ...PLAN_STREET_LABEL_POS,
+                    bottom: PLAN_LABEL_INSET.bottom,
+                  }}
+                >
+                  Memorial Drive
+                </p>
+              </div>
+
               {/* Node layer — coords are normalized to this box, which is the
                   exact rendered plan rect. */}
               <div className="absolute inset-0">
-                {rooms.length === 0 && (
-                  <div className="absolute left-1/2 top-8 -translate-x-1/2 rounded-md bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow">
-                    No sensors deployed on floor {floor} yet.
-                  </div>
-                )}
                 {rooms.map((r) => {
                   const d = roomData[r.room];
                   if (!d) return null;
@@ -140,7 +175,11 @@ export default function FloorView() {
                       ? controlReadings
                       : null
                   }
-                  courtyardReadings={courtyardReadings}
+                  courtyardReadings={
+                    selectedData.meta.role === "outdoor_courtyard"
+                      ? []
+                      : courtyardReadings
+                  }
                   penthouseReadings={penthouseReadings}
                   onClose={() => setSelectedRoom(null)}
                 />

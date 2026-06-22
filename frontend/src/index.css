@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Hanken+Grotesk:wght@400;500&family=JetBrains+Mono:wght@500&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,6 +12,44 @@ body,
 }
 
 body {
-  font-family: theme("fontFamily.sans");
+  font-family: theme("fontFamily.body");
   -webkit-font-smoothing: antialiased;
+  background-color: theme("colors.surface");
+  color: theme("colors.on-surface");
+}
+
+.glass-panel {
+  background: rgba(24, 24, 27, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover,
+.group:hover .glass-panel {
+  background: rgba(24, 24, 27, 0.28);
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  transform: scale(1.02);
+}
+
+.floor-button:active .glass-panel {
+  transform: scale(0.98);
+}
+
+.glass-panel-info {
+  background: rgba(24, 24, 27, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.vignette-overlay {
+  background: linear-gradient(
+    to right,
+    rgba(9, 9, 11, 0.55) 0%,
+    rgba(9, 9, 11, 0.22) 40%,
+    rgba(9, 9, 11, 0) 100%
+  );
 }
