@@ -24,10 +24,10 @@ describe('loadReadings', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => mockReadings }),
     );
 
-    const result = await loadReadings();
+    const result = await loadReadings('/data/phase1/manifest.json');
 
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(fetch).toHaveBeenNthCalledWith(1, '/data/manifest.json');
+    expect(fetch).toHaveBeenNthCalledWith(1, '/data/phase1/manifest.json');
     expect(fetch).toHaveBeenNthCalledWith(2, '/data/readings_20260609T120000Z.json');
     expect(result).toEqual(mockReadings);
   });
@@ -37,7 +37,7 @@ describe('loadReadings', () => {
       .mockResolvedValueOnce({ ok: false, status: 404 }),
     );
 
-    await expect(loadReadings()).rejects.toThrow('manifest 404');
+    await expect(loadReadings('/data/phase1/manifest.json')).rejects.toThrow('manifest 404');
   });
 
   it('throws with "readings <status>" when data file fetch fails', async () => {
@@ -46,6 +46,6 @@ describe('loadReadings', () => {
       .mockResolvedValueOnce({ ok: false, status: 500 }),
     );
 
-    await expect(loadReadings()).rejects.toThrow('readings 500');
+    await expect(loadReadings('/data/phase1/manifest.json')).rejects.toThrow('readings 500');
   });
 });

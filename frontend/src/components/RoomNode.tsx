@@ -11,6 +11,8 @@ interface Props {
 
 export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }: Props) {
   const color = tempToColor(avgTempC, colorOpts);
+  const label =
+    meta.role === "outdoor_courtyard" ? "Courtyard" : String(meta.room);
   return (
     <button
       type="button"
@@ -21,7 +23,11 @@ export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }:
         top: `${meta.yNorm * 100}%`,
         transform: "translateX(-50%) translateY(calc(-100% - 8px))",
       }}
-      aria-label={`Room ${meta.room}`}
+      aria-label={
+        meta.role === "outdoor_courtyard"
+          ? "Courtyard sensor"
+          : `Room ${meta.room}`
+      }
     >
       {/* Pulsing halo */}
       <span
@@ -36,8 +42,8 @@ export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }:
         style={{ background: color }}
       />
       {/* Room number tooltip */}
-      <span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-900/90 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 shadow group-hover:opacity-100 transition">
-        {meta.room} · {avgTempC.toFixed(1)}°C
+      <span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-900/90 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100">
+        {label} · {avgTempC.toFixed(1)}°C
       </span>
     </button>
   );

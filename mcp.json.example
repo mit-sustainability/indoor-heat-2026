@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "python",
+      "args": ["scripts/stitch_mcp.py"]
+    }
+  }
+}

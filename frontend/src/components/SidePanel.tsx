@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import type { FloorNumber } from "../config/floors";
 import { TEMP_SCALE_GRADIENT } from "../lib/colorScale";
 
@@ -26,24 +26,27 @@ function formatTimestamp(iso: string | null): string {
 
 export default function SidePanel({ floor, stats }: Props) {
   const avg = stats;
+  const [searchParams] = useSearchParams();
+  const phase = searchParams.get("phase");
+  const backTo = phase ? `/?phase=${phase}` : "/";
 
   return (
-    <aside className="flex h-full w-72 flex-col gap-6 bg-neutral-950 px-6 py-5 text-neutral-100">
+    <aside className="flex h-full w-72 flex-col gap-6 bg-zinc-900 px-6 py-5 text-zinc-200">
       <div>
         <Link
-          to="/"
-          className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-white"
+          to={backTo}
+          className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white"
         >
           ← All floors
         </Link>
         <h2 className="mt-3 text-2xl font-semibold tracking-tight">
           Floor {floor}
         </h2>
-        <p className="text-xs text-neutral-400">West Tower · McCormick Hall</p>
+        <p className="text-xs text-zinc-400">West Tower · McCormick Hall</p>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
           Floor averages
         </h3>
 
@@ -60,14 +63,14 @@ export default function SidePanel({ floor, stats }: Props) {
         <Stat label="Last collected" value={formatTimestamp(avg.lastUpdated)} />
       </div>
 
-      <div className="mt-auto rounded-lg border border-neutral-800 bg-neutral-900/60 p-3 text-xs leading-relaxed text-neutral-400">
-        <div className="mb-2 font-semibold text-neutral-300">Tip</div>
+      <div className="mt-auto rounded-lg border border-zinc-700 bg-zinc-800 p-3 text-xs leading-relaxed text-zinc-400">
+        <div className="mb-2 font-semibold text-zinc-300">Note</div>
         <p className="mb-3">
           Nodes are colored by average room temperature on this floor. Click a
           node for room-level details.
         </p>
         <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+          <div className="flex justify-between text-[10px] font-medium uppercase tracking-wide text-zinc-400">
             <span>Hotter</span>
             <span>Cooler</span>
           </div>

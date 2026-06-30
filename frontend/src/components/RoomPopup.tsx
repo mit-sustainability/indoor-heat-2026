@@ -27,13 +27,17 @@ export default function RoomPopup({
   onClose,
 }: Props) {
   const m = data.meta;
+  const isCourtyard = m.role === "outdoor_courtyard";
 
   return (
-    // Anchored to the right half of the floor plan area so it obscures the
-    // East tower (which has no sensors in this study).
-    <div className="pointer-events-none absolute inset-y-6 right-6 z-20 flex w-[58%] max-w-3xl">
+    <div
+      className={
+        isCourtyard
+          ? "pointer-events-none absolute inset-y-6 left-[44%] right-6 z-20 flex max-w-3xl"
+          : "pointer-events-none absolute inset-y-6 right-6 z-20 flex w-[58%] max-w-3xl"
+      }
+    >
       <div className="pointer-events-auto relative flex w-full flex-col overflow-hidden rounded-2xl bg-white text-neutral-900 shadow-2xl ring-1 ring-black/10">
-        {/* Close */}
         <button
           type="button"
           onClick={onClose}
@@ -54,14 +58,19 @@ export default function RoomPopup({
           </svg>
         </button>
 
-        {/* Header */}
         <header className="flex items-start justify-between gap-6 border-b border-neutral-200 bg-neutral-50 px-6 py-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-              Room
+              {m.role === "outdoor_courtyard" ? "Outdoor sensor" : "Room"}
             </div>
-            <h2 className="text-3xl font-semibold tracking-tight">{m.room}</h2>
-            <p className="text-sm text-neutral-600">{m.orientation}</p>
+            <h2 className="text-3xl font-semibold tracking-tight">
+              {m.role === "outdoor_courtyard" ? "Courtyard" : m.room}
+            </h2>
+            <p className="text-sm text-neutral-600">
+              {m.role === "outdoor_courtyard"
+                ? "Outdoor courtyard reference"
+                : m.orientation}
+            </p>
           </div>
           <div className="grid grid-cols-3 gap-4 pr-10 text-right">
             <Stat label="Avg daytime" value={`${data.avgDaytimeC.toFixed(1)} °C`} />
@@ -70,15 +79,16 @@ export default function RoomPopup({
           </div>
         </header>
 
-        {/* Body, scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
               Interventions
             </h3>
             {data.interventions.length === 0 ? (
               <p className="text-sm italic text-neutral-500">
-                None — this room is part of the unintervened control set.
+                {m.role === "outdoor_courtyard"
+                  ? "None — outdoor reference sensor."
+                  : "None — this room is part of the unintervened control set."}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3">

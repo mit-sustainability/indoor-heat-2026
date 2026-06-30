@@ -45,3 +45,37 @@ export function computeFitBox(
   const top = (boxH - height) / 2;
   return { width, height, left, top };
 }
+
+// Map a normalized point on the source image (0..1) to viewport % for
+// object-fit: cover (edge-to-edge, centered crop).
+export function coverPointToPercent(
+  boxW: number,
+  boxH: number,
+  imageRatio: number,
+  px: number,
+  py: number,
+): { left: number; top: number } {
+  if (boxW <= 0 || boxH <= 0) {
+    return { left: 0, top: 0 };
+  }
+  const boxRatio = boxW / boxH;
+  let renderedW: number;
+  let renderedH: number;
+  let offsetX: number;
+  let offsetY: number;
+  if (boxRatio > imageRatio) {
+    renderedH = boxH;
+    renderedW = boxH * imageRatio;
+    offsetX = (boxW - renderedW) / 2;
+    offsetY = 0;
+  } else {
+    renderedW = boxW;
+    renderedH = boxW / imageRatio;
+    offsetX = 0;
+    offsetY = (boxH - renderedH) / 2;
+  }
+  return {
+    left: ((offsetX + px * renderedW) / boxW) * 100,
+    top: ((offsetY + py * renderedH) / boxH) * 100,
+  };
+}

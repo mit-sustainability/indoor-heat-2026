@@ -11,8 +11,8 @@ export interface SensorReading {
   humidity_pct: number;
 }
 
-export async function loadReadings(): Promise<SensorReading[]> {
-  const manifestRes = await fetch('/data/manifest.json');
+export async function loadReadings(manifestUrl: string): Promise<SensorReading[]> {
+  const manifestRes = await fetch(manifestUrl);
   if (!manifestRes.ok) throw new Error(`manifest ${manifestRes.status}`);
   const manifest: Manifest = await manifestRes.json();
 
