@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import type { FloorNumber } from "../config/floors";
 import { TEMP_SCALE_GRADIENT } from "../lib/colorScale";
 
@@ -26,12 +26,15 @@ function formatTimestamp(iso: string | null): string {
 
 export default function SidePanel({ floor, stats }: Props) {
   const avg = stats;
+  const [searchParams] = useSearchParams();
+  const phase = searchParams.get("phase");
+  const backTo = phase ? `/?phase=${phase}` : "/";
 
   return (
     <aside className="flex h-full w-72 flex-col gap-6 bg-zinc-900 px-6 py-5 text-zinc-200">
       <div>
         <Link
-          to="/"
+          to={backTo}
           className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white"
         >
           ← All floors

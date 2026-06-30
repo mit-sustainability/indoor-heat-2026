@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import { FLOORS, type FloorNumber } from "../config/floors";
+import { DEFAULT_PHASE, phaseManifest } from "../config/phases";
 import { roomsForFloor, CONTROL_ROOMS } from "../config/rooms";
 import { loadReadings } from "../services/data";
 import { transformReadings, computeFloorStats, type TransformedData } from "../services/transform";
@@ -39,6 +40,8 @@ function parseFloor(raw: string | undefined): FloorNumber | null {
 
 export default function FloorView() {
   const params = useParams();
+  const [searchParams] = useSearchParams();
+  const manifestUrl = phaseManifest(searchParams.get("phase") ?? DEFAULT_PHASE);
   const floor = parseFloor(params.floor);
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
   const [data, setData] = useState<TransformedData | null>(null);
@@ -48,10 +51,10 @@ export default function FloorView() {
   const fit = computeFitBox(stageSize.width, stageSize.height, PLAN_RATIO);
 
   useEffect(() => {
-    loadReadings()
+    loadReadings(manifestUrl)
       .then(readings => setData(transformReadings(readings)))
       .catch(err => setError(String(err)));
-  }, []);
+  }, [manifestUrl]);
 
   if (floor === null) {
     return <Navigate to="/" replace />;

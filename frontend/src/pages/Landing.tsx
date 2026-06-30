@@ -1,6 +1,7 @@
 import { useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { FLOORS } from "../config/floors";
+import { PHASES, DEFAULT_PHASE } from "../config/phases";
 import { coverPointToPercent, useElementSize } from "../lib/useElementSize";
 
 const ELEVATION_RATIO = 6048 / 4320;
@@ -10,6 +11,8 @@ const ELEVATION_CAPTION = { x: 0.5, y: 0.825 };
 export default function Landing() {
   const stageRef = useRef<HTMLDivElement>(null);
   const stageSize = useElementSize(stageRef);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const phase = searchParams.get("phase") ?? DEFAULT_PHASE;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-white text-on-surface">
@@ -34,7 +37,7 @@ export default function Landing() {
               return (
                 <Link
                   key={f.floor}
-                  to={`/floor/${f.floor}`}
+                  to={`/floor/${f.floor}?phase=${phase}`}
                   className="floor-button group absolute -translate-x-full -translate-y-1/2 pr-2"
                   style={{
                     left: `${pos.left}%`,
@@ -73,6 +76,16 @@ export default function Landing() {
           );
         })()}
       </div>
+
+      <select
+        className="absolute right-6 top-5 z-20 cursor-pointer border-b border-zinc-400 bg-transparent font-mono text-[10px] uppercase tracking-widest text-zinc-900 outline-none md:right-10"
+        value={phase}
+        onChange={(e) => setSearchParams({ phase: e.target.value })}
+      >
+        {PHASES.map((p) => (
+          <option key={p.id} value={p.id}>{p.label}</option>
+        ))}
+      </select>
 
       <header className="pointer-events-none absolute left-0 top-0 z-20 px-6 py-5 md:px-10">
         <h1 className="font-display text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl">
