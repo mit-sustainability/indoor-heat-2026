@@ -5,8 +5,7 @@ import TempTrajectoryChart from "./TempTrajectoryChart";
 interface Props {
   data: RoomData;
   controlReadings: Reading[] | null;
-  courtyardReadings: Reading[];
-  penthouseReadings: Reading[];
+  outdoorReadings: Reading[];
   onClose: () => void;
 }
 
@@ -22,8 +21,7 @@ function formatTimestamp(iso: string): string {
 export default function RoomPopup({
   data,
   controlReadings,
-  courtyardReadings,
-  penthouseReadings,
+  outdoorReadings,
   onClose,
 }: Props) {
   const m = data.meta;
@@ -120,8 +118,7 @@ export default function RoomPopup({
             <TempTrajectoryChart
               room={data.readings}
               control={controlReadings}
-              courtyard={courtyardReadings}
-              penthouse={penthouseReadings}
+              outdoor={outdoorReadings}
             />
           </section>
         </div>

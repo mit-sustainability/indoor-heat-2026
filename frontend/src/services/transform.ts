@@ -6,8 +6,7 @@ import type { FloorNumber } from '../config/floors';
 
 export interface TransformedData {
   roomData: Record<number, RoomData>;
-  courtyardReadings: Reading[];
-  penthouseReadings: Reading[];
+  outdoorReadings: Reading[];
   controlReadings: Record<FloorNumber, Reading[] | null>;
 }
 
@@ -54,10 +53,23 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
   const toReadings = (raw: SensorReading[]): Reading[] =>
     raw.map(r => ({ timestamp: r.timestamp, temperatureC: fToC(r.temperature_f), humidityPct: r.humidity_pct }));
 
+  const outdoorRaw = [
+    ...toReadings(byRoom.get('courtyard') ?? []),
+    ...toReadings(byRoom.get('penthouse') ?? []),
+  ];
+  const outdoorByTime = new Map<string, number[]>();
+  for (const r of outdoorRaw) {
+    const bucket = outdoorByTime.get(r.timestamp) ?? [];
+    bucket.push(r.temperatureC);
+    outdoorByTime.set(r.timestamp, bucket);
+  }
+  const outdoorReadings: Reading[] = [...outdoorByTime.entries()]
+    .map(([timestamp, temps]) => ({ timestamp, temperatureC: +mean(temps).toFixed(2), humidityPct: 0 }))
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
   return {
     roomData,
-    courtyardReadings: toReadings(byRoom.get('courtyard') ?? []),
-    penthouseReadings: toReadings(byRoom.get('penthouse') ?? []),
+    outdoorReadings,
     controlReadings: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null },
   };
 }

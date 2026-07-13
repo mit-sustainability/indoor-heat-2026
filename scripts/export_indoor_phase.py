@@ -32,26 +32,46 @@ PHASES: dict[str, dict] = {
         "config_path": _CONFIG,
         "output_dir": "./output/phase1",
         "browser_base": "/data/phase1",
+        "start": "2026-06-03",
+        "end": "2026-06-10",  # exclusive
+        "exclude_dates": [],
     },
     "phase2": {
         "dropbox_folder": f"{_BASE}/Phase 2 Archive/Latest",
         "config_path": f"{_BASE}/Phase 2 Archive/phase2_sensor_config.json",
         "output_dir": "./output/phase2",
         "browser_base": "/data/phase2",
+        "start": "2026-06-10",
+        "end": "2026-06-17",  # exclusive
+        "exclude_dates": [],
     },
     "phase3": {
         "dropbox_folder": f"{_BASE}/Phase 3 Archive/Latest",
         "config_path": f"{_BASE}/Phase 3 Archive/phase3_sensor_config.json",
         "output_dir": "./output/phase3",
         "browser_base": "/data/phase3",
+        "start": "2026-06-18",
+        "end": "2026-06-22",  # exclusive; Jun 17 skipped (no furniture removal/night flush)
+        "exclude_dates": [],
     },
-    # phase4/Latest is currently empty
-    # "phase4": {
-    #     "dropbox_folder": f"{_BASE}/Phase 4 Archive/Latest",
-    #     "config_path": _CONFIG,
-    #     "output_dir": "./output/phase4",
-    #     "browser_base": "/data/phase4",
-    # },
+    "phase4": {
+        "dropbox_folder": f"{_BASE}/Phase 4 Archive/Latest",
+        "config_path": _CONFIG,
+        "output_dir": "./output/phase4",
+        "browser_base": "/data/phase4",
+        "start": "2026-06-23",
+        "end": "2026-07-01",  # exclusive; Jun 22 = furniture removal day
+        "exclude_dates": [],
+    },
+    "heat_event": {
+        "dropbox_folder": f"{_BASE}/Heat Event Archive/Latest",
+        "config_path": _CONFIG,
+        "output_dir": "./output/heat_event",
+        "browser_base": "/data/heat_event",
+        "start": "2026-07-01",
+        "end": "2026-07-07",  # exclusive
+        "exclude_dates": [],
+    },
 }
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -106,6 +126,15 @@ def run_phase(phase: str, dropbox: DropboxResource) -> None:
     aligned = _normalize(combined)
     config_df = _load_sensor_metadata(dropbox, cfg["config_path"])
     merged = aligned.merge(config_df, on="sensor_id", how="left")
+
+    # Clip to declared phase window
+    start = pd.Timestamp(cfg["start"])
+    end = pd.Timestamp(cfg["end"])
+    merged = merged[(merged["datetime_edt"] >= start) & (merged["datetime_edt"] < end)]
+    for excl in cfg.get("exclude_dates", []):
+        excl_ts = pd.Timestamp(excl)
+        merged = merged[~((merged["datetime_edt"] >= excl_ts) & (merged["datetime_edt"] < excl_ts + pd.Timedelta(days=1)))]
+    print(f"  kept {len(merged)} rows after date filter ({cfg['start']} to {cfg['end']}, excluding {cfg.get('exclude_dates', [])})")
 
     output_dir = Path(cfg["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)

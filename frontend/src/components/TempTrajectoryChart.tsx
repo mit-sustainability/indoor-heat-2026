@@ -13,19 +13,15 @@ import type { Reading } from "../data/mockData";
 interface Props {
   room: Reading[];
   control: Reading[] | null;
-  courtyard: Reading[];
-  penthouse: Reading[];
+  outdoor: Reading[];
 }
 
 function buildSeries(props: Props) {
   const byTime = new Map<
     string,
-    { time: string; room?: number; control?: number; courtyard?: number; penthouse?: number }
+    { time: string; room?: number; control?: number; outdoor?: number }
   >();
-  const upsert = (
-    list: Reading[],
-    key: "room" | "control" | "courtyard" | "penthouse",
-  ) => {
+  const upsert = (list: Reading[], key: "room" | "control" | "outdoor") => {
     for (const r of list) {
       const row = byTime.get(r.timestamp) ?? { time: r.timestamp };
       row[key] = r.temperatureC;
@@ -34,8 +30,7 @@ function buildSeries(props: Props) {
   };
   upsert(props.room, "room");
   if (props.control) upsert(props.control, "control");
-  upsert(props.courtyard, "courtyard");
-  upsert(props.penthouse, "penthouse");
+  upsert(props.outdoor, "outdoor");
   return Array.from(byTime.values()).sort((a, b) =>
     a.time < b.time ? -1 : 1,
   );
@@ -89,26 +84,15 @@ export default function TempTrajectoryChart(props: Props) {
               name="Indoor control"
             />
           )}
-          {props.courtyard.length > 0 && (
+          {props.outdoor.length > 0 && (
             <Line
               type="monotone"
-              dataKey="courtyard"
+              dataKey="outdoor"
               stroke="#65a30d"
-              strokeWidth={1.5}
-              strokeDasharray="2 3"
-              dot={false}
-              name="Courtyard (outdoor)"
-            />
-          )}
-          {props.penthouse.length > 0 && (
-            <Line
-              type="monotone"
-              dataKey="penthouse"
-              stroke="#d97706"
               strokeWidth={1.5}
               strokeDasharray="4 2"
               dot={false}
-              name="Penthouse (outdoor)"
+              name="Outdoor (avg)"
             />
           )}
         </LineChart>

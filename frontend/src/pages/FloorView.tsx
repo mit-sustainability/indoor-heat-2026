@@ -66,8 +66,7 @@ export default function FloorView() {
   const selectedData = selectedRoom !== null ? roomData[selectedRoom] ?? null : null;
   const controlRoom = CONTROL_ROOMS[floor];
   const controlReadings = data?.controlReadings[floor] ?? null;
-  const courtyardReadings = data?.courtyardReadings ?? [];
-  const penthouseReadings = data?.penthouseReadings ?? [];
+  const outdoorReadings = data?.outdoorReadings ?? [];
   const stats = data
     ? computeFloorStats(data.roomData, floor)
     : { avgTempC: null, avgHumidity: null, lastUpdated: null };
@@ -178,12 +177,11 @@ export default function FloorView() {
                       ? controlReadings
                       : null
                   }
-                  courtyardReadings={
+                  outdoorReadings={
                     selectedData.meta.role === "outdoor_courtyard"
                       ? []
-                      : courtyardReadings
+                      : outdoorReadings
                   }
-                  penthouseReadings={penthouseReadings}
                   onClose={() => setSelectedRoom(null)}
                 />
               )}
