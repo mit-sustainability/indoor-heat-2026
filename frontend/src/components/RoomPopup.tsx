@@ -61,10 +61,18 @@ export default function RoomPopup({
         <header className="flex items-start justify-between gap-6 border-b border-neutral-200 bg-neutral-50 px-6 py-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-              {m.role === "outdoor_courtyard" ? "Outdoor sensor" : "Room"}
+              {m.role === "outdoor_courtyard"
+                ? "Outdoor sensor"
+                : m.room === "hallway"
+                  ? "Indoor sensor"
+                  : "Room"}
             </div>
             <h2 className="text-3xl font-semibold tracking-tight">
-              {m.role === "outdoor_courtyard" ? "Courtyard" : m.room}
+              {m.role === "outdoor_courtyard"
+                ? "Courtyard"
+                : m.room === "hallway"
+                  ? "Hallway"
+                  : m.room}
             </h2>
             <p className="text-sm text-neutral-600">
               {m.role === "outdoor_courtyard"
@@ -88,7 +96,7 @@ export default function RoomPopup({
               <p className="text-sm italic text-neutral-500">
                 {m.role === "outdoor_courtyard"
                   ? "None — outdoor reference sensor."
-                  : "None — this room is part of the unintervened control set."}
+                  : "None — no window or blinds protocol for this sensor."}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3">

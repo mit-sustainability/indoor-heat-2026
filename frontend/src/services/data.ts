@@ -5,12 +5,15 @@ export interface Manifest {
 
 export interface SensorReading {
   room: string;
-  floor: number;
+  floor: number | null;
   timestamp: string;
   temperature_f: number;
   humidity_pct: number;
   wbgt_f?: number | null;
   device_type?: string;
+  orientation?: string | null;
+  window_state?: string | null;
+  blinds_state?: string | null;
   node_x?: number | null;
   node_y?: number | null;
 }

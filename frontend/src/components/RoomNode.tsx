@@ -1,4 +1,4 @@
-import type { RoomMeta } from "../config/rooms";
+import { roomLabel, type RoomMeta } from "../config/rooms";
 import { tempToColor, type ColorScaleOptions } from "../lib/colorScale";
 
 interface Props {
@@ -11,8 +11,7 @@ interface Props {
 
 export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }: Props) {
   const color = tempToColor(avgTempC, colorOpts);
-  const label =
-    meta.role === "outdoor_courtyard" ? "Courtyard" : String(meta.room);
+  const label = roomLabel(meta);
   return (
     <button
       type="button"
@@ -26,7 +25,9 @@ export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }:
       aria-label={
         meta.role === "outdoor_courtyard"
           ? "Courtyard sensor"
-          : `Room ${meta.room}`
+          : meta.room === "hallway"
+            ? "Hallway sensor"
+            : `Room ${meta.room}`
       }
     >
       {/* Pulsing halo */}

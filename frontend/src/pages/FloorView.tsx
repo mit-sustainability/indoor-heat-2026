@@ -3,9 +3,14 @@ import { Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import { FLOORS, type FloorNumber } from "../config/floors";
 import { DEFAULT_PHASE, phaseManifest } from "../config/phases";
-import { roomsForFloor, CONTROL_ROOMS } from "../config/rooms";
+import { CONTROL_ROOMS } from "../config/rooms";
 import { loadReadings } from "../services/data";
-import { transformReadings, computeFloorStats, type TransformedData } from "../services/transform";
+import {
+  transformReadings,
+  computeFloorStats,
+  roomsOnFloor,
+  type TransformedData,
+} from "../services/transform";
 
 import SidePanel from "../components/SidePanel";
 import RoomNode from "../components/RoomNode";
@@ -43,7 +48,7 @@ export default function FloorView() {
   const [searchParams] = useSearchParams();
   const manifestUrl = phaseManifest(searchParams.get("phase") ?? DEFAULT_PHASE);
   const floor = parseFloor(params.floor);
-  const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [data, setData] = useState<TransformedData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -51,18 +56,25 @@ export default function FloorView() {
   const fit = computeFitBox(stageSize.width, stageSize.height, PLAN_RATIO);
 
   useEffect(() => {
+    setSelectedRoom(null);
+    setData(null);
+    setError(null);
     loadReadings(manifestUrl)
-      .then(readings => setData(transformReadings(readings)))
-      .catch(err => setError(String(err)));
+      .then((readings) => setData(transformReadings(readings)))
+      .catch((err) => setError(String(err)));
   }, [manifestUrl]);
+
+  useEffect(() => {
+    setSelectedRoom(null);
+  }, [floor]);
 
   if (floor === null) {
     return <Navigate to="/" replace />;
   }
 
   const meta = FLOORS.find((f) => f.floor === floor)!;
-  const rooms = roomsForFloor(floor);
   const roomData = data?.roomData ?? {};
+  const floorRooms = roomsOnFloor(roomData, floor);
   const selectedData = selectedRoom !== null ? roomData[selectedRoom] ?? null : null;
   const controlRoom = CONTROL_ROOMS[floor];
   const controlReadings = data?.controlReadings[floor] ?? null;
@@ -72,11 +84,10 @@ export default function FloorView() {
     ? computeFloorStats(data.roomData, floor)
     : { avgTempC: null, avgHumidity: null, lastUpdated: null };
 
-  // Per-floor min/max for node colour scale.
-  const floorAvgTemps = rooms
-    .map(r => roomData[r.room])
-    .filter(Boolean)
-    .map(d => (d.avgDaytimeC + d.avgNighttimeC) / 2);
+  // Per-floor min/max for node colour scale (only rooms present in this phase).
+  const floorAvgTemps = floorRooms.map(
+    (d) => (d.avgDaytimeC + d.avgNighttimeC) / 2,
+  );
   const rawMin = floorAvgTemps.length > 0 ? Math.min(...floorAvgTemps) : 22;
   const rawMax = floorAvgTemps.length > 0 ? Math.max(...floorAvgTemps) : 30;
   const spread = rawMax - rawMin;
@@ -90,10 +101,10 @@ export default function FloorView() {
       <SidePanel floor={floor} stats={stats} />
 
       <main className="relative flex-1 overflow-hidden bg-neutral-100">
-        {rooms.length === 0 && (
+        {data && floorRooms.length === 0 && (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
             <p className="rounded-md bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow">
-              No sensors deployed on floor {floor}.
+              No sensors deployed on floor {floor} for this phase.
             </p>
           </div>
         )}
@@ -149,21 +160,18 @@ export default function FloorView() {
                 </p>
               </div>
 
-              {/* Node layer — coords are normalized to this box, which is the
-                  exact rendered plan rect. */}
+              {/* Node layer — coords from phase JSON node_x / node_y. */}
               <div className="absolute inset-0">
-                {rooms.map((r) => {
-                  const d = roomData[r.room];
-                  if (!d) return null;
+                {floorRooms.map((d) => {
                   const avgTemp = (d.avgDaytimeC + d.avgNighttimeC) / 2;
                   return (
                     <RoomNode
-                      key={r.room}
-                      meta={r}
+                      key={d.meta.room}
+                      meta={d.meta}
                       avgTempC={avgTemp}
                       colorOpts={colorOpts}
-                      active={selectedRoom === r.room}
-                      onClick={() => setSelectedRoom(r.room)}
+                      active={selectedRoom === d.meta.room}
+                      onClick={() => setSelectedRoom(d.meta.room)}
                     />
                   );
                 })}
@@ -183,7 +191,11 @@ export default function FloorView() {
                       ? []
                       : outdoorReadings
                   }
-                  kestrelReadings={selectedRoom !== null ? kestrelRoomData[selectedRoom] : undefined}
+                  kestrelReadings={
+                    selectedRoom !== null
+                      ? kestrelRoomData[selectedRoom]
+                      : undefined
+                  }
                   onClose={() => setSelectedRoom(null)}
                 />
               )}
