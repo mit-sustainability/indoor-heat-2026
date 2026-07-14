@@ -2,6 +2,11 @@ import { useRef, useState, useEffect } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import { FLOORS, type FloorNumber } from "../config/floors";
+import {
+  DEFAULT_HEAT_METRIC,
+  heatValue,
+  type HeatMetric,
+} from "../config/heatMetrics";
 import { DEFAULT_PHASE, phaseManifest } from "../config/phases";
 import { CONTROL_ROOMS } from "../config/rooms";
 import { loadReadings } from "../services/data";
@@ -39,7 +44,7 @@ function parseFloor(raw: string | undefined): FloorNumber | null {
   if (!raw) return null;
   const n = Number(raw);
   if (!Number.isInteger(n)) return null;
-  if (n < 1 || n > 7) return null;
+  if (!FLOORS.some((f) => f.floor === n)) return null;
   return n as FloorNumber;
 }
 
@@ -49,6 +54,7 @@ export default function FloorView() {
   const manifestUrl = phaseManifest(searchParams.get("phase") ?? DEFAULT_PHASE);
   const floor = parseFloor(params.floor);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [heatMetric, setHeatMetric] = useState<HeatMetric>(DEFAULT_HEAT_METRIC);
   const [data, setData] = useState<TransformedData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -85,11 +91,9 @@ export default function FloorView() {
     : { avgTempC: null, avgHumidity: null, lastUpdated: null };
 
   // Per-floor min/max for node colour scale (only rooms present in this phase).
-  const floorAvgTemps = floorRooms.map(
-    (d) => (d.avgDaytimeC + d.avgNighttimeC) / 2,
-  );
-  const rawMin = floorAvgTemps.length > 0 ? Math.min(...floorAvgTemps) : 22;
-  const rawMax = floorAvgTemps.length > 0 ? Math.max(...floorAvgTemps) : 30;
+  const floorTemps = floorRooms.map((d) => heatValue(d, heatMetric));
+  const rawMin = floorTemps.length > 0 ? Math.min(...floorTemps) : 22;
+  const rawMax = floorTemps.length > 0 ? Math.max(...floorTemps) : 30;
   const spread = rawMax - rawMin;
   const colorOpts = {
     minC: spread < 0.5 ? rawMin - 1 : rawMin,
@@ -98,13 +102,18 @@ export default function FloorView() {
 
   return (
     <div className="flex h-screen w-screen bg-neutral-900 text-white">
-      <SidePanel floor={floor} stats={stats} />
+      <SidePanel
+        floor={floor}
+        stats={stats}
+        heatMetric={heatMetric}
+        onHeatMetricChange={setHeatMetric}
+      />
 
       <main className="relative flex-1 overflow-hidden bg-neutral-100">
         {data && floorRooms.length === 0 && (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
             <p className="rounded-md bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow">
-              No sensors deployed on floor {floor} for this phase.
+              No sensors deployed on floor {floor} during this phase.
             </p>
           </div>
         )}
@@ -163,12 +172,12 @@ export default function FloorView() {
               {/* Node layer — coords from phase JSON node_x / node_y. */}
               <div className="absolute inset-0">
                 {floorRooms.map((d) => {
-                  const avgTemp = (d.avgDaytimeC + d.avgNighttimeC) / 2;
+                  const tempC = heatValue(d, heatMetric);
                   return (
                     <RoomNode
                       key={d.meta.room}
                       meta={d.meta}
-                      avgTempC={avgTemp}
+                      avgTempC={tempC}
                       colorOpts={colorOpts}
                       active={selectedRoom === d.meta.room}
                       onClick={() => setSelectedRoom(d.meta.room)}

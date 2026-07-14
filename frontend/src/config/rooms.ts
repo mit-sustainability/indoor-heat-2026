@@ -47,12 +47,8 @@ export const FALLBACK_NODE_POS: Record<string, { xNorm: number; yNorm: number }>
 };
 
 export const CONTROL_ROOMS: Record<FloorNumber, string | null> = {
-  1: null,
-  2: null,
   3: "301",
-  4: null,
   5: "501",
-  6: null,
   7: "701",
 };
 

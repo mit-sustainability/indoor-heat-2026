@@ -9,11 +9,13 @@ export interface SensorReading {
   timestamp: string;
   temperature_f: number;
   humidity_pct: number;
+  heat_index_f?: number | null;
   wbgt_f?: number | null;
   device_type?: string;
   orientation?: string | null;
   window_state?: string | null;
   blinds_state?: string | null;
+  fan?: string | null;
   node_x?: number | null;
   node_y?: number | null;
 }

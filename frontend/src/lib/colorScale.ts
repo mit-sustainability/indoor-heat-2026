@@ -1,4 +1,4 @@
-// Red → purple → blue scale by average temperature.
+// Red → purple → blue scale by selected heat metric.
 // Warm rooms = red, cool rooms = blue, mid-range = purple (no green/cyan).
 
 export interface ColorScaleOptions {

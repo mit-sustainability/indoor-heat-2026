@@ -5,9 +5,10 @@ import {
   FALLBACK_NODE_POS,
   nodeRole,
   normalizeOrientation,
+  roomLabel,
   type RoomMeta,
 } from '../config/rooms';
-import type { FloorNumber } from '../config/floors';
+import { FLOORS, type FloorNumber } from '../config/floors';
 
 export interface TransformedData {
   roomData: Record<string, RoomData>;
@@ -29,8 +30,12 @@ function mean(xs: number[]): number {
   return xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
+function peak(xs: number[]): number {
+  return xs.length === 0 ? 0 : Math.max(...xs);
+}
+
 function isFloorNumber(n: number): n is FloorNumber {
-  return Number.isInteger(n) && n >= 1 && n <= 7;
+  return FLOORS.some((f) => f.floor === n);
 }
 
 /** Prefer a reading that carries floor + node coords. */
@@ -95,15 +100,22 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
       timestamp: r.timestamp,
       temperatureC: fToC(r.temperature_f),
       humidityPct: r.humidity_pct,
+      ...(r.heat_index_f != null ? { heatIndexC: fToC(r.heat_index_f) } : {}),
     }));
     const day = rs.filter((r) => isDaytime(r.timestamp));
     const night = rs.filter((r) => !isDaytime(r.timestamp));
     const stateSample =
-      raw.find((r) => r.window_state?.trim() || r.blinds_state?.trim()) ?? sample;
+      raw.find(
+        (r) =>
+          r.window_state?.trim() ||
+          r.blinds_state?.trim() ||
+          r.fan?.trim(),
+      ) ?? sample;
 
     roomData[room] = {
       meta,
       readings: rs,
+      peakDaytimeC: +(peak(day.map((r) => r.temperatureC))).toFixed(2),
       avgDaytimeC: +(mean(day.map((r) => r.temperatureC))).toFixed(2),
       avgNighttimeC: +(mean(night.map((r) => r.temperatureC))).toFixed(2),
       avgHumidity: +(mean(rs.map((r) => r.humidityPct))).toFixed(1),
@@ -111,6 +123,7 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
       interventions: interventionsFromStates(
         stateSample.window_state,
         stateSample.blinds_state,
+        stateSample.fan,
       ),
     };
 
@@ -119,6 +132,7 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
         timestamp: r.timestamp,
         temperatureC: fToC(r.temperature_f),
         humidityPct: r.humidity_pct,
+        ...(r.heat_index_f != null ? { heatIndexC: fToC(r.heat_index_f) } : {}),
         wbgtF: r.wbgt_f ?? undefined,
       }));
     }
@@ -129,6 +143,7 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
       timestamp: r.timestamp,
       temperatureC: fToC(r.temperature_f),
       humidityPct: r.humidity_pct,
+      ...(r.heat_index_f != null ? { heatIndexC: fToC(r.heat_index_f) } : {}),
     }));
 
   const outdoorRaw = [
@@ -153,8 +168,16 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
     roomData,
     kestrelRoomData,
     outdoorReadings,
-    controlReadings: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null },
+    controlReadings: { 3: null, 5: null, 7: null },
   };
+}
+
+/** Floors that have at least one placeable node in this phase (landing-button order). */
+export function floorsWithNodes(roomData: Record<string, RoomData>): FloorNumber[] {
+  const present = new Set(
+    Object.values(roomData).map((d) => d.meta.floor),
+  );
+  return FLOORS.filter((f) => present.has(f.floor)).map((f) => f.floor);
 }
 
 export function roomsOnFloor(
@@ -182,5 +205,62 @@ export function computeFloorStats(roomData: Record<string, RoomData>, floor: Flo
     lastUpdated:
       data.map((d) => d.lastCollected).filter(Boolean).sort().reverse()[0] ??
       (null as string | null),
+  };
+}
+
+export interface PhaseStatHighlight {
+  valueC: number;
+  node: string;
+}
+
+export interface PhaseStats {
+  tempHigh: PhaseStatHighlight | null;
+  heatIndexHigh: PhaseStatHighlight | null;
+  lowestAvgNighttime: PhaseStatHighlight | null;
+}
+
+/** Phase-wide extrema from already-transformed room nodes. */
+export function computePhaseStats(roomData: Record<string, RoomData>): PhaseStats {
+  const rooms = Object.values(roomData);
+  if (rooms.length === 0) {
+    return { tempHigh: null, heatIndexHigh: null, lowestAvgNighttime: null };
+  }
+
+  let tempHigh: PhaseStatHighlight | null = null;
+  let heatIndexHigh: PhaseStatHighlight | null = null;
+  let lowestAvgNighttime: PhaseStatHighlight | null = null;
+
+  for (const data of rooms) {
+    const node = roomLabel(data.meta);
+
+    for (const r of data.readings) {
+      if (tempHigh === null || r.temperatureC > tempHigh.valueC) {
+        tempHigh = { valueC: r.temperatureC, node };
+      }
+      if (r.heatIndexC != null) {
+        if (heatIndexHigh === null || r.heatIndexC > heatIndexHigh.valueC) {
+          heatIndexHigh = { valueC: r.heatIndexC, node };
+        }
+      }
+    }
+
+    if (
+      lowestAvgNighttime === null ||
+      data.avgNighttimeC < lowestAvgNighttime.valueC
+    ) {
+      lowestAvgNighttime = { valueC: data.avgNighttimeC, node };
+    }
+  }
+
+  return {
+    tempHigh: tempHigh
+      ? { ...tempHigh, valueC: +tempHigh.valueC.toFixed(2) }
+      : null,
+    heatIndexHigh: heatIndexHigh
+      ? { ...heatIndexHigh, valueC: +heatIndexHigh.valueC.toFixed(2) }
+      : null,
+    lowestAvgNighttime: lowestAvgNighttime
+      ? { ...lowestAvgNighttime, valueC: +lowestAvgNighttime.valueC.toFixed(2) }
+      : null,
   };
 }

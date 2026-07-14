@@ -1,5 +1,6 @@
 import type { RoomData } from "../data/mockData";
 import type { Reading } from "../data/mockData";
+import { interventionCategoryLabel } from "../config/interventions";
 import TempTrajectoryChart from "./TempTrajectoryChart";
 
 interface Props {
@@ -81,7 +82,7 @@ export default function RoomPopup({
             </p>
           </div>
           <div className="grid grid-cols-3 gap-4 pr-10 text-right">
-            <Stat label="Avg daytime" value={`${data.avgDaytimeC.toFixed(1)} °C`} />
+            <Stat label="Peak daytime" value={`${data.peakDaytimeC.toFixed(1)} °C`} />
             <Stat label="Avg nighttime" value={`${data.avgNighttimeC.toFixed(1)} °C`} />
             <Stat label="Avg humidity" value={`${data.avgHumidity.toFixed(0)} %`} />
           </div>
@@ -96,16 +97,18 @@ export default function RoomPopup({
               <p className="text-sm italic text-neutral-500">
                 {m.role === "outdoor_courtyard"
                   ? "None — outdoor reference sensor."
-                  : "None — no window or blinds protocol for this sensor."}
+                  : "None — no window, blinds, or fan protocol for this sensor."}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3">
                 {data.interventions.map((it) => (
                   <div
-                    key={it.label}
+                    key={it.category}
                     className="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
                   >
-                    <div className="text-2xl">{it.emoji}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                      {interventionCategoryLabel(it.category)}
+                    </div>
                     <div className="mt-1 text-sm font-semibold">{it.label}</div>
                     <div className="text-xs leading-snug text-neutral-600">
                       {it.description}

@@ -148,6 +148,7 @@ def _load_sensor_metadata(dropbox_res: "DropboxResource", config_file_path: str)
             "orientation": meta.get("orientation"),
             "window_state": meta.get("window_state"),
             "blinds_state": meta.get("blinds_state"),
+            "fan": meta.get("fan"),
             "note": meta.get("note"),
             "sensor_photo": meta.get("sensor_photo"),
             "window_photo": meta.get("window_photo"),
@@ -237,6 +238,8 @@ def _write_phase_export(output_dir: Path, df: pd.DataFrame, now: datetime, brows
             "window_state": row.get("window_state"),
             "blinds_state": row.get("blinds_state"),
         }
+        if pd.notna(row.get("fan")):
+            rec["fan"] = str(row["fan"]).strip()
         if pd.notna(row.get("wbgt_f")):
             rec["wbgt_f"] = round(float(row["wbgt_f"]), 3)
         if pd.notna(row.get("node_x")):

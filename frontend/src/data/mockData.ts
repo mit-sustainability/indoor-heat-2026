@@ -12,12 +12,14 @@ export interface Reading {
   timestamp: string; // ISO
   temperatureC: number;
   humidityPct: number;
+  heatIndexC?: number;
   wbgtF?: number;
 }
 
 export interface RoomData {
   meta: RoomMeta;
   readings: Reading[];
+  peakDaytimeC: number;
   avgDaytimeC: number;
   avgNighttimeC: number;
   avgHumidity: number;
@@ -66,7 +68,11 @@ function dayMask(reading: Reading): boolean {
 }
 
 function mean(xs: number[]): number {
-  return xs.reduce((a, b) => a + b, 0) / xs.length;
+  return xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
+}
+
+function peak(xs: number[]): number {
+  return xs.length === 0 ? 0 : Math.max(...xs);
 }
 
 function buildRoomData(meta: RoomMeta, seed: number, baseTemp: number, baseHumidity: number): RoomData {
@@ -76,20 +82,7 @@ function buildRoomData(meta: RoomMeta, seed: number, baseTemp: number, baseHumid
   return {
     meta,
     readings,
-    avgDaytimeC: +mean(day.map((r) => r.temperatureC)).toFixed(2),
-    avgNighttimeC: +mean(night.map((r) => r.temperatureC)).toFixed(2),
-    avgHumidity: +mean(readings.map((r) => r.humidityPct)).toFixed(1),
-    lastCollected: readings[readings.length - 1].timestamp,
-    interventions: [],
-  };
-}
-
-function buildRoomDataFromReadings(meta: RoomMeta, readings: Reading[]): RoomData {
-  const day = readings.filter(dayMask);
-  const night = readings.filter((r) => !dayMask(r));
-  return {
-    meta,
-    readings,
+    peakDaytimeC: +peak(day.map((r) => r.temperatureC)).toFixed(2),
     avgDaytimeC: +mean(day.map((r) => r.temperatureC)).toFixed(2),
     avgNighttimeC: +mean(night.map((r) => r.temperatureC)).toFixed(2),
     avgHumidity: +mean(readings.map((r) => r.humidityPct)).toFixed(1),
@@ -99,7 +92,6 @@ function buildRoomDataFromReadings(meta: RoomMeta, readings: Reading[]): RoomDat
 }
 
 const BASE_TEMP_BY_FLOOR: Record<number, number> = {
-  1: 22.0,
   3: 24.0,
   5: 26.5,
   7: 28.0,
@@ -118,7 +110,6 @@ const ROOM_OFFSET: Record<string, number> = {
 
 /** Demo room set used only by mock data helpers (not FloorView). */
 const MOCK_ROOMS: RoomMeta[] = [
-  { room: "199", floor: 1, xNorm: 0.4, yNorm: 0.44, orientation: "South facing", role: "outdoor_courtyard" },
   { room: "304", floor: 3, xNorm: 0.314, yNorm: 0.377, orientation: "East facing", role: "room" },
   { room: "309", floor: 3, xNorm: 0.224, yNorm: 0.639, orientation: "South facing", role: "room" },
   { room: "314", floor: 3, xNorm: 0.137, yNorm: 0.377, orientation: "West facing", role: "room" },
@@ -129,11 +120,6 @@ const MOCK_ROOMS: RoomMeta[] = [
   { room: "714", floor: 7, xNorm: 0.137, yNorm: 0.377, orientation: "West facing", role: "room" },
 ];
 
-export const COURTYARD_READINGS: Reading[] = generateReadings(22.0, 65, 8888).map((r) => ({
-  ...r,
-  temperatureC: +(r.temperatureC + Math.sin(((new Date(r.timestamp).getHours() - 6) / 24) * Math.PI * 2) * 3.5).toFixed(2),
-}));
-
 export const ROOM_DATA: Record<string, RoomData> = Object.fromEntries(
   MOCK_ROOMS.filter((meta) => meta.role === "room").map((meta, i) => {
     const base = BASE_TEMP_BY_FLOOR[meta.floor] ?? 25;
@@ -142,21 +128,9 @@ export const ROOM_DATA: Record<string, RoomData> = Object.fromEntries(
   }),
 );
 
-const courtyardMeta = MOCK_ROOMS.find((r) => r.role === "outdoor_courtyard");
-if (courtyardMeta) {
-  ROOM_DATA[courtyardMeta.room] = buildRoomDataFromReadings(
-    courtyardMeta,
-    COURTYARD_READINGS,
-  );
-}
-
 export const CONTROL_READINGS: Record<FloorNumber, Reading[] | null> = {
-  1: null,
-  2: null,
   3: generateReadings(24.0, 50, 7001),
-  4: null,
   5: generateReadings(26.3, 50, 7005),
-  6: null,
   7: generateReadings(27.5, 50, 7007),
 };
 
