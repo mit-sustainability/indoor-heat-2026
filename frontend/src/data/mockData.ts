@@ -9,6 +9,7 @@ export interface Reading {
   timestamp: string; // ISO
   temperatureC: number;
   humidityPct: number;
+  wbgtF?: number;
 }
 
 export interface RoomData {

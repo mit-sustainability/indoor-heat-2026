@@ -6,6 +6,7 @@ interface Props {
   data: RoomData;
   controlReadings: Reading[] | null;
   outdoorReadings: Reading[];
+  kestrelReadings?: Reading[];
   onClose: () => void;
 }
 
@@ -22,6 +23,7 @@ export default function RoomPopup({
   data,
   controlReadings,
   outdoorReadings,
+  kestrelReadings,
   onClose,
 }: Props) {
   const m = data.meta;
@@ -119,6 +121,7 @@ export default function RoomPopup({
               room={data.readings}
               control={controlReadings}
               outdoor={outdoorReadings}
+              kestrel={kestrelReadings}
             />
           </section>
         </div>

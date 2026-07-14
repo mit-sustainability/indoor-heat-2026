@@ -53,6 +53,7 @@ export const ROOMS: RoomMeta[] = [
   // Floor 3
   room(304, 3, POS_X04, "East facing"),
   room(309, 3, POS_X09, "South facing"),
+  room(311, 3, POS_X14, "West facing"), // heat event; position overridden by node_x/node_y from data when present
   room(314, 3, POS_X14, "West facing"),
   // Floor 5
   room(504, 5, POS_X04, "East facing"),
@@ -60,6 +61,7 @@ export const ROOMS: RoomMeta[] = [
   // Floor 7
   room(704, 7, POS_X04, "East facing"),
   room(709, 7, POS_X09, "South facing"),
+  room(711, 7, POS_X14, "West facing"), // heat event; position overridden by node_x/node_y from data when present
   room(714, 7, POS_X14, "West facing"),
 ];
 

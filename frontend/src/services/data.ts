@@ -9,6 +9,10 @@ export interface SensorReading {
   timestamp: string;
   temperature_f: number;
   humidity_pct: number;
+  wbgt_f?: number | null;
+  device_type?: string;
+  node_x?: number | null;
+  node_y?: number | null;
 }
 
 export async function loadReadings(manifestUrl: string): Promise<SensorReading[]> {

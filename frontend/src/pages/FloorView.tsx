@@ -67,6 +67,7 @@ export default function FloorView() {
   const controlRoom = CONTROL_ROOMS[floor];
   const controlReadings = data?.controlReadings[floor] ?? null;
   const outdoorReadings = data?.outdoorReadings ?? [];
+  const kestrelRoomData = data?.kestrelRoomData ?? {};
   const stats = data
     ? computeFloorStats(data.roomData, floor)
     : { avgTempC: null, avgHumidity: null, lastUpdated: null };
@@ -182,6 +183,7 @@ export default function FloorView() {
                       ? []
                       : outdoorReadings
                   }
+                  kestrelReadings={selectedRoom !== null ? kestrelRoomData[selectedRoom] : undefined}
                   onClose={() => setSelectedRoom(null)}
                 />
               )}

@@ -14,14 +14,14 @@ interface Props {
   room: Reading[];
   control: Reading[] | null;
   outdoor: Reading[];
+  kestrel?: Reading[];
 }
 
+type Row = { time: string; room?: number; control?: number; outdoor?: number; kestrel?: number; wbgt?: number };
+
 function buildSeries(props: Props) {
-  const byTime = new Map<
-    string,
-    { time: string; room?: number; control?: number; outdoor?: number }
-  >();
-  const upsert = (list: Reading[], key: "room" | "control" | "outdoor") => {
+  const byTime = new Map<string, Row>();
+  const upsert = (list: Reading[], key: "room" | "control" | "outdoor" | "kestrel") => {
     for (const r of list) {
       const row = byTime.get(r.timestamp) ?? { time: r.timestamp };
       row[key] = r.temperatureC;
@@ -31,6 +31,14 @@ function buildSeries(props: Props) {
   upsert(props.room, "room");
   if (props.control) upsert(props.control, "control");
   upsert(props.outdoor, "outdoor");
+  if (props.kestrel) {
+    for (const r of props.kestrel) {
+      const row = byTime.get(r.timestamp) ?? { time: r.timestamp };
+      row.kestrel = r.temperatureC;
+      if (r.wbgtF !== undefined) row.wbgt = (r.wbgtF - 32) * 5 / 9;
+      byTime.set(r.timestamp, row);
+    }
+  }
   return Array.from(byTime.values()).sort((a, b) =>
     a.time < b.time ? -1 : 1,
   );
@@ -43,6 +51,8 @@ function formatTick(iso: string) {
 
 export default function TempTrajectoryChart(props: Props) {
   const data = buildSeries(props);
+  const hasKestrel = (props.kestrel?.length ?? 0) > 0;
+  const hasWbgt = hasKestrel && props.kestrel!.some(r => r.wbgtF !== undefined);
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer>
@@ -71,7 +81,7 @@ export default function TempTrajectoryChart(props: Props) {
             stroke="#dc2626"
             strokeWidth={2}
             dot={false}
-            name="This room"
+            name="HOBO"
           />
           {props.control && (
             <Line
@@ -93,6 +103,27 @@ export default function TempTrajectoryChart(props: Props) {
               strokeDasharray="4 2"
               dot={false}
               name="Outdoor (avg)"
+            />
+          )}
+          {hasKestrel && (
+            <Line
+              type="monotone"
+              dataKey="kestrel"
+              stroke="#d97706"
+              strokeWidth={1.5}
+              dot={false}
+              name="Kestrel"
+            />
+          )}
+          {hasWbgt && (
+            <Line
+              type="monotone"
+              dataKey="wbgt"
+              stroke="#7c3aed"
+              strokeWidth={1.5}
+              strokeDasharray="2 3"
+              dot={false}
+              name="WBGT (Kestrel)"
             />
           )}
         </LineChart>

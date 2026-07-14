@@ -6,6 +6,7 @@ import type { FloorNumber } from '../config/floors';
 
 export interface TransformedData {
   roomData: Record<number, RoomData>;
+  kestrelRoomData: Record<number, Reading[]>;
   outdoorReadings: Reading[];
   controlReadings: Record<FloorNumber, Reading[] | null>;
 }
@@ -30,17 +31,23 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
   }
 
   const roomData: Record<number, RoomData> = {};
+  const kestrelRoomData: Record<number, Reading[]> = {};
   for (const meta of ROOMS) {
     const raw = byRoom.get(String(meta.room)) ?? [];
-    const rs: Reading[] = raw.map(r => ({
+    const hoboRaw = raw.filter(r => !r.device_type || r.device_type === 'hobo');
+    const kestrelRaw = raw.filter(r => r.device_type === 'kestrel');
+    const rs: Reading[] = hoboRaw.map(r => ({
       timestamp: r.timestamp,
       temperatureC: fToC(r.temperature_f),
       humidityPct: r.humidity_pct,
     }));
     const day = rs.filter(r => isDaytime(r.timestamp));
     const night = rs.filter(r => !isDaytime(r.timestamp));
+    const positioned = raw[0]?.node_x != null && raw[0]?.node_y != null
+      ? { ...meta, xNorm: raw[0].node_x, yNorm: raw[0].node_y }
+      : meta;
     roomData[meta.room] = {
-      meta,
+      meta: positioned,
       readings: rs,
       avgDaytimeC: +(mean(day.map(r => r.temperatureC))).toFixed(2),
       avgNighttimeC: +(mean(night.map(r => r.temperatureC))).toFixed(2),
@@ -48,6 +55,14 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
       lastCollected: rs.length ? rs[rs.length - 1].timestamp : '',
       interventions: INTERVENTION_SETS[meta.room] ?? [],
     };
+    if (kestrelRaw.length > 0) {
+      kestrelRoomData[meta.room] = kestrelRaw.map(r => ({
+        timestamp: r.timestamp,
+        temperatureC: fToC(r.temperature_f),
+        humidityPct: r.humidity_pct,
+        wbgtF: r.wbgt_f ?? undefined,
+      }));
+    }
   }
 
   const toReadings = (raw: SensorReading[]): Reading[] =>
@@ -69,6 +84,7 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
 
   return {
     roomData,
+    kestrelRoomData,
     outdoorReadings,
     controlReadings: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null },
   };
