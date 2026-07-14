@@ -20,8 +20,8 @@ beforeEach(() => {
 describe('loadReadings', () => {
   it('fetches manifest then readings and returns the array', async () => {
     vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => mockManifest })
-      .mockResolvedValueOnce({ ok: true, json: async () => mockReadings }),
+      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(mockManifest) })
+      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(mockReadings) }),
     );
 
     const result = await loadReadings('/data/phase1/manifest.json');
@@ -42,10 +42,19 @@ describe('loadReadings', () => {
 
   it('throws with "readings <status>" when data file fetch fails', async () => {
     vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => mockManifest })
+      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(mockManifest) })
       .mockResolvedValueOnce({ ok: false, status: 500 }),
     );
 
     await expect(loadReadings('/data/phase1/manifest.json')).rejects.toThrow('readings 500');
+  });
+
+  it('throws a clear error when a 200 response is HTML, not JSON (unexported phase / SPA fallback)', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, text: async () => '<!doctype html><html>...' }),
+    );
+
+    await expect(loadReadings('/data/heat_event/manifest.json'))
+      .rejects.toThrow('has this phase been exported yet?');
   });
 });
