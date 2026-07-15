@@ -146,7 +146,7 @@ export default function Landing() {
                   top: `${captionPos.top}%`,
                 }}
               >
-                North Elevation of McCormick Hall - Front view from Amherst Street
+                Northern Elevation of McCormick Hall - Front view from Amherst Street
               </p>
             );
           })()}
@@ -195,6 +195,20 @@ export default function Landing() {
             </a>
           );
         })()}
+
+        <div className="pointer-events-none absolute bottom-10 right-16 z-20 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.15em] text-zinc-700 opacity-60 md:right-24">
+          <span>East</span>
+          <svg
+            width="48"
+            height="10"
+            viewBox="0 0 48 10"
+            fill="none"
+            className="text-zinc-600"
+          >
+            <path d="M0 5 L7 1.5 L7 3.5 L41 3.5 L41 1.5 L48 5 L41 8.5 L41 6.5 L7 6.5 L7 8.5 Z" fill="currentColor" />
+          </svg>
+          <span>West</span>
+        </div>
       </section>
 
       <section
