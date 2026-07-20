@@ -13,7 +13,7 @@ from scripts.export_indoor_phase import PHASES, _read_kestrel_file, run_phase
 def _make_sensor_excel() -> BytesIO:
     df = pd.DataFrame({
         "#": [1, 2],
-        "Date-Time (EDT)": ["05/15/2026 12:00:00", "05/15/2026 12:20:00"],
+        "Date-Time (EDT)": ["06/04/2026 12:00:00", "06/04/2026 12:20:00"],
         "Temperature, °C": [21.96, 21.80],
         "RH, %": [41.92, 42.12],
         "Dew Point, °C": [8.45, 8.38],
@@ -76,6 +76,41 @@ def test_run_phase_readings_include_config_fields(tmp_path, monkeypatch):
     assert readings[0]["floor"] == 3
     assert readings[0]["node_x"] == 0.314
     assert readings[0]["node_y"] == 0.377
+
+
+def test_run_phase_readings_include_temperature_c(tmp_path, monkeypatch):
+    monkeypatch.setitem(PHASES, "phase1", {**PHASES["phase1"], "output_dir": str(tmp_path)})
+    run_phase("phase1", _mock_dropbox())
+    readings = json.loads(list(tmp_path.glob("readings_*.json"))[0].read_text())
+    assert readings[0]["temperature_c"] == pytest.approx(21.96, abs=0.01)
+    csv_rows = pd.read_csv(tmp_path / "readings.csv")
+    assert csv_rows.loc[0, "temperature_c"] == pytest.approx(21.96, abs=0.01)
+
+
+def test_run_phase_flags_readings_inside_skip_window(tmp_path, monkeypatch):
+    # Fixture's two readings are 06/04/2026 12:00:00 and 12:20:00 EDT.
+    # Bracket only the first one with a skip window.
+    config = {
+        "3": {
+            "floor": 3, "orientation": "East",
+            "skip_start": "2026-06-04T11:00:00", "skip_end": "2026-06-04T12:10:00",
+        }
+    }
+    dbx = _mock_dropbox()
+    dbx.download_file.side_effect = lambda path: (
+        BytesIO(json.dumps(config).encode()) if path.endswith(".json") else _make_sensor_excel()
+    )
+    monkeypatch.setitem(PHASES, "phase1", {**PHASES["phase1"], "output_dir": str(tmp_path)})
+    run_phase("phase1", dbx)
+
+    readings = json.loads(list(tmp_path.glob("readings_*.json"))[0].read_text())
+    readings.sort(key=lambda r: r["timestamp"])
+    assert readings[0]["skipped"] is True
+    assert "skipped" not in readings[1]
+
+    csv_rows = pd.read_csv(tmp_path / "readings.csv").sort_values("datetime_edt").reset_index(drop=True)
+    assert bool(csv_rows.loc[0, "skipped"]) is True
+    assert bool(csv_rows.loc[1, "skipped"]) is False
 
 
 def test_read_kestrel_file_parses_plain_csv_export():

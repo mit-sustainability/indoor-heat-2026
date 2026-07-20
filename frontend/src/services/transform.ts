@@ -22,7 +22,11 @@ function mean(xs: number[]): number {
   return xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
-export function transformReadings(readings: SensorReading[]): TransformedData {
+export function transformReadings(allReadings: SensorReading[]): TransformedData {
+  // Readings inside a sensor's configured skip_start/skip_end window are flagged
+  // upstream (scripts/export_indoor_phase.py), not dropped, so the raw record is
+  // still available for offline analysis — the frontend just never displays them.
+  const readings = allReadings.filter(r => !r.skipped);
   const byRoom = new Map<string, SensorReading[]>();
   for (const r of readings) {
     const list = byRoom.get(r.room) ?? [];
@@ -68,10 +72,8 @@ export function transformReadings(readings: SensorReading[]): TransformedData {
   const toReadings = (raw: SensorReading[]): Reading[] =>
     raw.map(r => ({ timestamp: r.timestamp, temperatureC: fToC(r.temperature_f), humidityPct: r.humidity_pct }));
 
-  const outdoorRaw = [
-    ...toReadings(byRoom.get('courtyard') ?? []),
-    ...toReadings(byRoom.get('penthouse') ?? []),
-  ];
+  const OUTDOOR_SENSOR_IDS = ['courtyard', 'penthouse', 'kresge'];
+  const outdoorRaw = OUTDOOR_SENSOR_IDS.flatMap(id => toReadings(byRoom.get(id) ?? []));
   const outdoorByTime = new Map<string, number[]>();
   for (const r of outdoorRaw) {
     const bucket = outdoorByTime.get(r.timestamp) ?? [];

@@ -13,6 +13,7 @@ export interface SensorReading {
   device_type?: string;
   node_x?: number | null;
   node_y?: number | null;
+  skipped?: boolean;
 }
 
 // A dev-server SPA fallback (or misconfigured static host) returns index.html

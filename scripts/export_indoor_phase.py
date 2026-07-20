@@ -153,6 +153,8 @@ def _load_sensor_metadata(dropbox_res: "DropboxResource", config_file_path: str)
             "window_photo": meta.get("window_photo"),
             "node_x": meta.get("node_x"),
             "node_y": meta.get("node_y"),
+            "skip_start": pd.to_datetime(meta.get("skip_start"), errors="coerce"),
+            "skip_end": pd.to_datetime(meta.get("skip_end"), errors="coerce"),
         })
     return pd.DataFrame(rows)
 
@@ -229,6 +231,7 @@ def _write_phase_export(output_dir: Path, df: pd.DataFrame, now: datetime, brows
             "floor": int(float(row["floor"])) if pd.notna(row.get("floor")) else None,
             "timestamp": _parse_edt(row["datetime_edt"]),
             "temperature_f": round(float(row["temperature_f"]), 3),
+            "temperature_c": round(float(row["temperature_c"]), 3),
             "humidity_pct": round(float(row["relative_humidity_pct"]), 3),
             "dew_point_f": round(float(row["dew_point_f"]), 3),
             "heat_index_f": round(float(row["heat_index_f"]), 3),
@@ -243,6 +246,8 @@ def _write_phase_export(output_dir: Path, df: pd.DataFrame, now: datetime, brows
             rec["node_x"] = round(float(row["node_x"]), 4)
         if pd.notna(row.get("node_y")):
             rec["node_y"] = round(float(row["node_y"]), 4)
+        if row.get("skipped"):
+            rec["skipped"] = True
         records.append(rec)
 
     raw = json.dumps(records, default=str, indent=2)
@@ -275,8 +280,8 @@ PHASES: dict[str, dict] = {
         "config_path": f"{_BASE}/Phase 1 Archive/Latest/indoor_phase1_config.json",
         "output_dir": "./output/phase1",
         "browser_base": "/data/phase1",
-        "start": "2026-06-03",
-        "end": "2026-06-10",  # exclusive
+        "start": "2026-06-03T17:00",  # actual deploy time
+        "end": "2026-06-10T15:00",  # actual retrieve time; exclusive
         "exclude_dates": [],
     },
     "phase2": {
@@ -284,8 +289,8 @@ PHASES: dict[str, dict] = {
         "config_path": f"{_BASE}/Phase 2 Archive/indoor_phase2_config.json",
         "output_dir": "./output/phase2",
         "browser_base": "/data/phase2",
-        "start": "2026-06-10",
-        "end": "2026-06-17",  # exclusive
+        "start": "2026-06-10T17:00",  # actual deploy time
+        "end": "2026-06-15T15:00",  # actual retrieve time; exclusive
         "exclude_dates": [],
     },
     "phase3": {
@@ -293,8 +298,8 @@ PHASES: dict[str, dict] = {
         "config_path": f"{_BASE}/Phase 3 Archive/indoor_phase3_config.json",
         "output_dir": "./output/phase3",
         "browser_base": "/data/phase3",
-        "start": "2026-06-18",
-        "end": "2026-06-22",  # exclusive; Jun 17 skipped (no furniture removal/night flush)
+        "start": "2026-06-15T17:00",  # actual deploy time
+        "end": "2026-06-22T09:00",  # actual retrieve time; exclusive
         "exclude_dates": [],
     },
     "phase4": {
@@ -302,8 +307,8 @@ PHASES: dict[str, dict] = {
         "config_path": f"{_BASE}/Phase 4 Archive/indoor_phase4_config.json",
         "output_dir": "./output/phase4",
         "browser_base": "/data/phase4",
-        "start": "2026-06-23",
-        "end": "2026-06-30",  # exclusive; Jun 22 = furniture removal day
+        "start": "2026-06-23T17:00",  # actual deploy time
+        "end": "2026-06-25T09:00",  # actual retrieve time; exclusive
         "exclude_dates": [],
     },
     "heat_event": {
@@ -311,8 +316,8 @@ PHASES: dict[str, dict] = {
         "config_path": f"{_BASE}/Heat Event/indoor_heat_event_config.csv",
         "output_dir": "./output/heat_event",
         "browser_base": "/data/heat_event",
-        "start": "2026-07-01",
-        "end": "2026-07-06",  # exclusive
+        "start": "2026-06-30T17:00",  # actual deploy time
+        "end": "2026-07-06T14:00",  # actual retrieve time; exclusive
         "exclude_dates": [],
     },
 }
@@ -380,6 +385,8 @@ def _load_heat_event_config(dropbox_res: DropboxResource, path: str) -> pd.DataF
             "fan": r["Fan"],
             "node_x": r.get("Node X"),
             "node_y": r.get("Node Y"),
+            "skip_start": pd.to_datetime(r.get("Skip Start"), errors="coerce"),
+            "skip_end": pd.to_datetime(r.get("Skip End"), errors="coerce"),
         }
         for _, r in cfg.iterrows()
     ])
@@ -397,6 +404,7 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     df["datetime_bin"] = df["datetime_edt"].dt.round("20min")
     agg: dict = dict(
         temperature_f=("temperature_f", "mean"),
+        temperature_c=("temperature_c", "mean"),
         relative_humidity_pct=("relative_humidity_pct", "mean"),
         dew_point_f=("dew_point_f", "mean"),
         heat_index_f=("heat_index_f", "mean"),
@@ -448,6 +456,12 @@ def run_phase(phase: str, dropbox_res: DropboxResource) -> None:
     else:
         config_df = _load_heat_event_config(dropbox_res, config_path)
     merged = aligned.merge(config_df, on="sensor_id", how="left")
+
+    merged["skipped"] = (
+        merged["skip_start"].notna() & merged["skip_end"].notna()
+        & (merged["datetime_edt"] >= merged["skip_start"])
+        & (merged["datetime_edt"] < merged["skip_end"])
+    )
 
     # Clip to declared phase window
     start = pd.Timestamp(cfg["start"])

@@ -23,4 +23,18 @@ describe('transformReadings', () => {
     expect(roomData[304].meta.xNorm).toBe(0.314);
     expect(roomData[304].meta.yNorm).toBe(0.377);
   });
+
+  it('excludes skipped readings from both the chart series and the room averages', () => {
+    const readings: SensorReading[] = [
+      { room: '304', floor: 3, timestamp: '2026-06-17T21:00:00Z', temperature_f: 100, humidity_pct: 90, skipped: true },
+      { room: '304', floor: 3, timestamp: '2026-06-19T12:00:00Z', temperature_f: 80, humidity_pct: 50 },
+    ];
+    const { roomData } = transformReadings(readings);
+    expect(roomData[304].readings).toHaveLength(1);
+    expect(roomData[304].readings[0].timestamp).toBe('2026-06-19T12:00:00Z');
+    // fToC(80) = 26.67, and with only the non-skipped reading, day/night avg equals it exactly.
+    const expectedC = +((80 - 32) * 5 / 9).toFixed(2);
+    expect(roomData[304].avgHumidity).toBe(50);
+    expect([roomData[304].avgDaytimeC, roomData[304].avgNighttimeC]).toContain(expectedC);
+  });
 });
