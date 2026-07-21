@@ -87,6 +87,16 @@ def test_run_phase_readings_include_temperature_c(tmp_path, monkeypatch):
     assert csv_rows.loc[0, "temperature_c"] == pytest.approx(21.96, abs=0.01)
 
 
+def test_run_phase_readings_include_heat_index_c(tmp_path, monkeypatch):
+    monkeypatch.setitem(PHASES, "phase1", {**PHASES["phase1"], "output_dir": str(tmp_path)})
+    run_phase("phase1", _mock_dropbox())
+    readings = json.loads(list(tmp_path.glob("readings_*.json"))[0].read_text())
+    expected_c = (readings[0]["heat_index_f"] - 32) * 5 / 9
+    assert readings[0]["heat_index_c"] == pytest.approx(expected_c, abs=0.01)
+    csv_rows = pd.read_csv(tmp_path / "readings.csv")
+    assert csv_rows.loc[0, "heat_index_c"] == pytest.approx(expected_c, abs=0.01)
+
+
 def test_run_phase_flags_readings_inside_skip_window(tmp_path, monkeypatch):
     # Fixture's two readings are 06/04/2026 12:00:00 and 12:20:00 EDT.
     # Bracket only the first one with a skip window.

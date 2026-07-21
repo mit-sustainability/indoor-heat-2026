@@ -37,11 +37,13 @@ _DIRECT_RENAMES = {
     "Temperature, °C": "temperature_c",
     "Temperature   (°C)": "temperature_c",
     "temp , °C": "temperature_c",
+    "temp   (°C)": "temperature_c",
     "1 , °C": "temperature_c",
     "RH , %": "relative_humidity_pct",
     "RH, %": "relative_humidity_pct",
     "RH   (%)": "relative_humidity_pct",
     "rh , %": "relative_humidity_pct",
+    "rh   (%)": "relative_humidity_pct",
     "1 , %": "relative_humidity_pct",
     "Dew Point , °C": "dew_point_c",
     "Dew Point, °C": "dew_point_c",
@@ -235,6 +237,7 @@ def _write_phase_export(output_dir: Path, df: pd.DataFrame, now: datetime, brows
             "humidity_pct": round(float(row["relative_humidity_pct"]), 3),
             "dew_point_f": round(float(row["dew_point_f"]), 3),
             "heat_index_f": round(float(row["heat_index_f"]), 3),
+            "heat_index_c": round(float(row["heat_index_c"]), 3),
             "device_type": row.get("device_type"),
             "orientation": row.get("orientation"),
             "window_state": row.get("window_state"),
@@ -277,7 +280,7 @@ _BASE = "ns:4039652928/Program Topics/Data/Projects/Indoor campus heat data 2026
 PHASES: dict[str, dict] = {
     "phase1": {
         "dropbox_folder": f"{_BASE}/Phase 1 Archive/Latest",
-        "config_path": f"{_BASE}/Phase 1 Archive/Latest/indoor_phase1_config.json",
+        "config_path": f"{_BASE}/Phase 1 Archive/indoor_phase1_config.json",
         "output_dir": "./output/phase1",
         "browser_base": "/data/phase1",
         "start": "2026-06-03T17:00",  # actual deploy time
@@ -308,7 +311,7 @@ PHASES: dict[str, dict] = {
         "output_dir": "./output/phase4",
         "browser_base": "/data/phase4",
         "start": "2026-06-23T17:00",  # actual deploy time
-        "end": "2026-06-25T09:00",  # actual retrieve time; exclusive
+        "end": "2026-06-29T20:20",  # actual retrieve time; exclusive
         "exclude_dates": [],
     },
     "heat_event": {
@@ -317,7 +320,7 @@ PHASES: dict[str, dict] = {
         "output_dir": "./output/heat_event",
         "browser_base": "/data/heat_event",
         "start": "2026-06-30T17:00",  # actual deploy time
-        "end": "2026-07-06T14:00",  # actual retrieve time; exclusive
+        "end": "2026-07-06T09:20",  # actual retrieve time; exclusive
         "exclude_dates": [],
     },
 }
@@ -401,6 +404,7 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     df["temperature_f"] = df["temperature_c"] * 9 / 5 + 32
     df["dew_point_f"] = df["dew_point_c"] * 9 / 5 + 32
     df["heat_index_f"] = _calculate_heat_index_f(df["temperature_f"], df["relative_humidity_pct"])
+    df["heat_index_c"] = (df["heat_index_f"] - 32) * 5 / 9
     df["datetime_bin"] = df["datetime_edt"].dt.round("20min")
     agg: dict = dict(
         temperature_f=("temperature_f", "mean"),
@@ -408,6 +412,7 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
         relative_humidity_pct=("relative_humidity_pct", "mean"),
         dew_point_f=("dew_point_f", "mean"),
         heat_index_f=("heat_index_f", "mean"),
+        heat_index_c=("heat_index_c", "mean"),
     )
     if "wbgt_f" in df.columns:
         agg["wbgt_f"] = ("wbgt_f", "mean")
