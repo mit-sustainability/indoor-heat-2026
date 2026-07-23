@@ -149,7 +149,6 @@ def _load_sensor_metadata(dropbox_res: "DropboxResource", config_file_path: str)
             "window_state": meta.get("window_state"),
             "blinds_state": meta.get("blinds_state"),
             "fan": meta.get("fan"),
-            "note": meta.get("note"),
             "sensor_photo": meta.get("sensor_photo"),
             "window_photo": meta.get("window_photo"),
             "node_x": meta.get("node_x"),
@@ -258,7 +257,10 @@ def _write_phase_export(output_dir: Path, df: pd.DataFrame, now: datetime, brows
 
     manifest = {
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "files": {"readings": browser_path},
+        "files": {
+            "readings": browser_path,
+            "metadata": f"{browser_base}/metadata.json",
+        },
     }
     with tempfile.NamedTemporaryFile(mode="w", dir=output_dir, suffix=".tmp", delete=False) as tf:
         tf.write(json.dumps(manifest, indent=2))

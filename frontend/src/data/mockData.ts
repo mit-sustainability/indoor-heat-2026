@@ -1,8 +1,8 @@
 // Mock readings for local development. Generates a few days of hourly temp +
-// humidity for each instrumented room, indoor control rooms, and the courtyard
-// sensor. Replace with real API calls when a backend is added.
+// humidity for each instrumented room and the courtyard sensor.
+// Replace with real API calls when a backend is added.
 
-import { CONTROL_ROOMS, type RoomMeta } from "../config/rooms";
+import { type RoomMeta } from "../config/rooms";
 import type { FloorNumber } from "../config/floors";
 import type { Intervention } from "../config/interventions";
 
@@ -11,17 +11,31 @@ export type { Intervention };
 export interface Reading {
   timestamp: string; // ISO
   temperatureC: number;
+  temperatureF: number;
   humidityPct: number;
+  /** From export heat_index_c / heat_index_f — never converted in the frontend. */
   heatIndexC?: number;
+  heatIndexF?: number;
   wbgtF?: number;
+  /** Marked omitted in the export; still plotted, shaded on the chart. */
+  skipped?: boolean;
 }
 
 export interface RoomData {
   meta: RoomMeta;
+  /** Primary chart series (HOBO when present). */
   readings: Reading[];
+  /**
+   * When set, peaks / phase extrema use these instead of `readings`
+   * (e.g. heat event prefers Kestrel for metrics while still plotting HOBO).
+   */
+  metricReadings?: Reading[];
   peakDaytimeC: number;
+  peakDaytimeF: number;
   avgDaytimeC: number;
+  avgDaytimeF: number;
   avgNighttimeC: number;
+  avgNighttimeF: number;
   avgHumidity: number;
   lastCollected: string;
   interventions: Intervention[];
@@ -53,18 +67,21 @@ function generateReadings(
     const temp = baseTemp + diurnal + noise;
     const humidity =
       baseHumidity - diurnal * 1.5 + (rand() - 0.5) * 4;
+    const temperatureC = +temp.toFixed(2);
     readings.push({
       timestamp: t.toISOString(),
-      temperatureC: +temp.toFixed(2),
+      temperatureC,
+      temperatureF: +((temperatureC * 9) / 5 + 32).toFixed(2),
       humidityPct: +Math.max(20, Math.min(80, humidity)).toFixed(1),
     });
   }
   return readings;
 }
 
+/** Night is 20:00–09:00; daytime is everything else (09:00–20:00). */
 function dayMask(reading: Reading): boolean {
   const h = new Date(reading.timestamp).getHours();
-  return h >= 7 && h < 19;
+  return h >= 9 && h < 20;
 }
 
 function mean(xs: number[]): number {
@@ -83,8 +100,11 @@ function buildRoomData(meta: RoomMeta, seed: number, baseTemp: number, baseHumid
     meta,
     readings,
     peakDaytimeC: +peak(day.map((r) => r.temperatureC)).toFixed(2),
+    peakDaytimeF: +peak(day.map((r) => r.temperatureF)).toFixed(2),
     avgDaytimeC: +mean(day.map((r) => r.temperatureC)).toFixed(2),
+    avgDaytimeF: +mean(day.map((r) => r.temperatureF)).toFixed(2),
     avgNighttimeC: +mean(night.map((r) => r.temperatureC)).toFixed(2),
+    avgNighttimeF: +mean(night.map((r) => r.temperatureF)).toFixed(2),
     avgHumidity: +mean(readings.map((r) => r.humidityPct)).toFixed(1),
     lastCollected: readings[readings.length - 1].timestamp,
     interventions: [],
@@ -128,12 +148,6 @@ export const ROOM_DATA: Record<string, RoomData> = Object.fromEntries(
   }),
 );
 
-export const CONTROL_READINGS: Record<FloorNumber, Reading[] | null> = {
-  3: generateReadings(24.0, 50, 7001),
-  5: generateReadings(26.3, 50, 7005),
-  7: generateReadings(27.5, 50, 7007),
-};
-
 export function floorAverages(floor: FloorNumber) {
   const rooms = MOCK_ROOMS.filter((r) => r.floor === floor && r.role === "room");
   if (rooms.length === 0) {
@@ -149,5 +163,3 @@ export function floorAverages(floor: FloorNumber) {
       .reverse()[0],
   };
 }
-
-export { CONTROL_ROOMS };

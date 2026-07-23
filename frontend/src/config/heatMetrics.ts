@@ -1,4 +1,5 @@
 import type { RoomData } from "../data/mockData";
+import type { TempUnit } from "./tempUnit";
 
 export type HeatMetric = "peakDaytime" | "avgNighttime";
 
@@ -23,8 +24,15 @@ export const HEAT_METRICS: HeatMetricOption[] = [
 
 export const DEFAULT_HEAT_METRIC: HeatMetric = "peakDaytime";
 
-export function heatValue(data: RoomData, metric: HeatMetric): number {
-  return metric === "peakDaytime" ? data.peakDaytimeC : data.avgNighttimeC;
+export function heatValue(
+  data: RoomData,
+  metric: HeatMetric,
+  unit: TempUnit,
+): number {
+  if (metric === "peakDaytime") {
+    return unit === "f" ? data.peakDaytimeF : data.peakDaytimeC;
+  }
+  return unit === "f" ? data.avgNighttimeF : data.avgNighttimeC;
 }
 
 export function heatMetricLabel(metric: HeatMetric): string {

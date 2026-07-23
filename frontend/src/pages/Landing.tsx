@@ -6,14 +6,22 @@ import {
   DEFAULT_PHASE,
   phaseById,
   phaseManifest,
+  phasePrimaryDevice,
 } from "../config/phases";
 import { PROJECT_SECTION } from "../config/project";
+import {
+  parseTempUnit,
+  TEMP_UNITS,
+  tempUnitSymbol,
+  type TempUnit,
+} from "../config/tempUnit";
 import { coverPointToPercent, useElementSize } from "../lib/useElementSize";
-import { loadReadings } from "../services/data";
+import { loadPhaseData } from "../services/data";
 import {
   computePhaseStats,
   floorsWithNodes,
   transformReadings,
+  type PhaseStatHighlight,
   type PhaseStats,
 } from "../services/transform";
 
@@ -34,17 +42,26 @@ export default function Landing() {
   const stageSize = useElementSize(stageRef);
   const [searchParams, setSearchParams] = useSearchParams();
   const phase = searchParams.get("phase") ?? DEFAULT_PHASE;
+  const unit = parseTempUnit(searchParams.get("unit"));
   const [activeFloors, setActiveFloors] = useState<FloorNumber[] | null>(null);
   const [phaseStats, setPhaseStats] = useState<PhaseStats | null>(null);
+
+  const updateParams = (patch: Record<string, string>) => {
+    const next = new URLSearchParams(searchParams);
+    for (const [k, v] of Object.entries(patch)) next.set(k, v);
+    setSearchParams(next);
+  };
 
   useEffect(() => {
     let cancelled = false;
     setActiveFloors(null);
     setPhaseStats(null);
-    loadReadings(phaseManifest(phase))
-      .then((readings) => {
+    loadPhaseData(phaseManifest(phase))
+      .then(({ readings, metadata }) => {
         if (cancelled) return;
-        const { roomData } = transformReadings(readings);
+        const { roomData } = transformReadings(readings, metadata, {
+          primaryDevice: phasePrimaryDevice(phase),
+        });
         setActiveFloors(floorsWithNodes(roomData));
         setPhaseStats(computePhaseStats(roomData));
       })
@@ -66,6 +83,7 @@ export default function Landing() {
 
   const phaseInfo = phaseById(phase);
   const stats = phaseStats ?? EMPTY_STATS;
+  const floorQuery = new URLSearchParams({ phase, unit }).toString();
 
   return (
     <div className="h-screen w-screen overflow-y-auto overflow-x-hidden bg-white text-on-surface">
@@ -91,7 +109,7 @@ export default function Landing() {
                 return (
                   <Link
                     key={f.floor}
-                    to={`/floor/${f.floor}?phase=${phase}`}
+                    to={`/floor/${f.floor}?${floorQuery}`}
                     className="floor-button group absolute -translate-x-full -translate-y-1/2 pr-2"
                     style={{
                       left: `${pos.left}%`,
@@ -152,14 +170,25 @@ export default function Landing() {
           })()}
         </div>
 
-        <div className="absolute right-6 top-5 z-20 md:right-10">
+        <div className="absolute right-6 top-5 z-20 flex flex-col items-end gap-2 md:right-10">
           <select
             className="cursor-pointer border-b border-zinc-400 bg-transparent font-mono text-[10px] uppercase tracking-widest text-zinc-900 outline-none"
             value={phase}
-            onChange={(e) => setSearchParams({ phase: e.target.value })}
+            onChange={(e) => updateParams({ phase: e.target.value })}
+            aria-label="Study phase"
           >
             {PHASES.map((p) => (
               <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+          <select
+            className="cursor-pointer border-b border-zinc-400 bg-transparent font-mono text-[10px] uppercase tracking-widest text-zinc-900 outline-none"
+            value={unit}
+            onChange={(e) => updateParams({ unit: parseTempUnit(e.target.value) })}
+            aria-label="Temperature unit"
+          >
+            {TEMP_UNITS.map((u) => (
+              <option key={u.id} value={u.id}>{u.label}</option>
             ))}
           </select>
         </div>
@@ -227,19 +256,22 @@ export default function Landing() {
           </p>
 
           <div className="mt-12 grid gap-10 border-t border-zinc-200 pt-10 sm:grid-cols-3 sm:gap-8">
-            <PhaseStat
+            <TempPhaseStat
               label="Temperature high"
               highlight={stats.tempHigh}
+              unit={unit}
               loading={phaseStats === null}
             />
-            <PhaseStat
+            <TempPhaseStat
               label="Heat index high"
               highlight={stats.heatIndexHigh}
+              unit={unit}
               loading={phaseStats === null}
             />
-            <PhaseStat
+            <TempPhaseStat
               label="Lowest avg nighttime"
               highlight={stats.lowestAvgNighttime}
+              unit={unit}
               loading={phaseStats === null}
             />
           </div>
@@ -289,14 +321,48 @@ function OverviewItem({ label, body }: { label: string; body: string }) {
   );
 }
 
-function PhaseStat({
+function TempPhaseStat({
   label,
   highlight,
+  unit,
   loading,
 }: {
   label: string;
-  highlight: PhaseStats["tempHigh"];
+  highlight: PhaseStatHighlight | null;
+  unit: TempUnit;
   loading: boolean;
+}) {
+  const value =
+    highlight == null
+      ? null
+      : unit === "f"
+        ? highlight.valueF
+        : highlight.valueC;
+  const symbol = tempUnitSymbol(unit);
+
+  return (
+    <PhaseStatFrame
+      label={label}
+      loading={loading}
+      value={value}
+      node={highlight?.node ?? null}
+      symbol={symbol}
+    />
+  );
+}
+
+function PhaseStatFrame({
+  label,
+  loading,
+  value,
+  node,
+  symbol,
+}: {
+  label: string;
+  loading: boolean;
+  value: number | null;
+  node: string | null;
+  symbol: string;
 }) {
   return (
     <div>
@@ -307,15 +373,15 @@ function PhaseStat({
         <p className="mt-3 font-display text-3xl font-semibold tabular-nums text-zinc-300">
           —
         </p>
-      ) : highlight ? (
+      ) : value != null && node ? (
         <>
           <p className="mt-3 font-display text-3xl font-semibold tabular-nums tracking-tight text-zinc-900">
-            {highlight.valueC.toFixed(1)}
-            <span className="ml-1 text-lg font-medium text-zinc-500">°C</span>
+            {value.toFixed(1)}
+            <span className="ml-1 text-lg font-medium text-zinc-500">{symbol}</span>
           </p>
           <p className="mt-2 font-body text-sm text-zinc-600">
             at{" "}
-            <span className="font-semibold text-zinc-800">{highlight.node}</span>
+            <span className="font-semibold text-zinc-800">{node}</span>
           </p>
         </>
       ) : (

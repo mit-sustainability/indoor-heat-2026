@@ -29,7 +29,7 @@ def _make_config_json() -> BytesIO:
         "3": {
             "hobo_id": 21777605, "calibration_id": 1, "floor": 3,
             "orientation": "East", "window_state": "Closed 24/7",
-            "blinds_state": "Open", "note": None,
+            "blinds_state": "Open",
             "sensor_photo": None, "window_photo": None,
             "node_x": 0.314, "node_y": 0.377,
         }
@@ -66,6 +66,7 @@ def test_run_phase_manifest_points_to_correct_browser_base(tmp_path, monkeypatch
     run_phase("phase1", _mock_dropbox())
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     assert manifest["files"]["readings"].startswith("/data/phase1/")
+    assert manifest["files"]["metadata"] == "/data/phase1/metadata.json"
 
 
 def test_run_phase_readings_include_config_fields(tmp_path, monkeypatch):

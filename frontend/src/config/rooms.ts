@@ -21,6 +21,8 @@ export interface RoomMeta {
   yNorm: number;
   orientation: Orientation;
   role: SensorRole;
+  /** Optional display name from phase metadata.json. */
+  label?: string | null;
 }
 
 /** Known positions when readings lack node_x / node_y. */
@@ -46,12 +48,6 @@ export const FALLBACK_NODE_POS: Record<string, { xNorm: number; yNorm: number }>
   hallway: { xNorm: 0.224, yNorm: 0.57 },
 };
 
-export const CONTROL_ROOMS: Record<FloorNumber, string | null> = {
-  3: "301",
-  5: "501",
-  7: "701",
-};
-
 export function normalizeOrientation(raw?: string | null): Orientation {
   const s = (raw ?? "").toLowerCase().replace(/[()]/g, "").trim();
   if (s.includes("east")) return "East facing";
@@ -61,6 +57,8 @@ export function normalizeOrientation(raw?: string | null): Orientation {
 }
 
 export function roomLabel(meta: RoomMeta): string {
+  const custom = meta.label?.trim();
+  if (custom) return custom;
   if (meta.role === "outdoor_courtyard") return "Courtyard";
   if (meta.room === "hallway") return "Hallway";
   return meta.room;

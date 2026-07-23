@@ -7,12 +7,13 @@ import {
   heatValue,
   type HeatMetric,
 } from "../config/heatMetrics";
-import { DEFAULT_PHASE, phaseManifest } from "../config/phases";
-import { CONTROL_ROOMS } from "../config/rooms";
-import { loadReadings } from "../services/data";
+import { DEFAULT_PHASE, phaseManifest, phasePrimaryDevice } from "../config/phases";
+import { parseTempUnit } from "../config/tempUnit";
+import { loadPhaseData } from "../services/data";
 import {
   transformReadings,
   computeFloorStats,
+  computeFloorChartDomain,
   roomsOnFloor,
   type TransformedData,
 } from "../services/transform";
@@ -20,6 +21,7 @@ import {
 import SidePanel from "../components/SidePanel";
 import RoomNode from "../components/RoomNode";
 import RoomPopup from "../components/RoomPopup";
+import { colorScaleDomain } from "../lib/colorScale";
 import { useElementSize, computeFitBox } from "../lib/useElementSize";
 
 // Native pixel dimensions of the rendered floor plan PNGs.
@@ -51,7 +53,9 @@ function parseFloor(raw: string | undefined): FloorNumber | null {
 export default function FloorView() {
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const manifestUrl = phaseManifest(searchParams.get("phase") ?? DEFAULT_PHASE);
+  const phase = searchParams.get("phase") ?? DEFAULT_PHASE;
+  const unit = parseTempUnit(searchParams.get("unit"));
+  const manifestUrl = phaseManifest(phase);
   const floor = parseFloor(params.floor);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [heatMetric, setHeatMetric] = useState<HeatMetric>(DEFAULT_HEAT_METRIC);
@@ -65,10 +69,16 @@ export default function FloorView() {
     setSelectedRoom(null);
     setData(null);
     setError(null);
-    loadReadings(manifestUrl)
-      .then((readings) => setData(transformReadings(readings)))
+    loadPhaseData(manifestUrl)
+      .then(({ readings, metadata }) =>
+        setData(
+          transformReadings(readings, metadata, {
+            primaryDevice: phasePrimaryDevice(phase),
+          }),
+        ),
+      )
       .catch((err) => setError(String(err)));
-  }, [manifestUrl]);
+  }, [manifestUrl, phase]);
 
   useEffect(() => {
     setSelectedRoom(null);
@@ -82,31 +92,43 @@ export default function FloorView() {
   const roomData = data?.roomData ?? {};
   const floorRooms = roomsOnFloor(roomData, floor);
   const selectedData = selectedRoom !== null ? roomData[selectedRoom] ?? null : null;
-  const controlRoom = CONTROL_ROOMS[floor];
-  const controlReadings = data?.controlReadings[floor] ?? null;
   const outdoorReadings = data?.outdoorReadings ?? [];
+  const outdoorLabel = data?.outdoorLabel ?? "Outdoor (avg)";
   const kestrelRoomData = data?.kestrelRoomData ?? {};
   const stats = data
     ? computeFloorStats(data.roomData, floor)
-    : { avgTempC: null, avgHumidity: null, lastUpdated: null };
+    : {
+        avgPeakDaytimeC: null,
+        avgPeakDaytimeF: null,
+        avgNighttimeC: null,
+        avgNighttimeF: null,
+        avgHumidity: null,
+        lastUpdated: null,
+      };
+
+  // Shared popup chart Y-axis for every node on this floor.
+  const chartYDomain = data
+    ? computeFloorChartDomain(data.roomData, floor, unit, {
+        outdoor: outdoorReadings,
+        kestrelByRoom: kestrelRoomData,
+      })
+    : null;
 
   // Per-floor min/max for node colour scale (only rooms present in this phase).
-  const floorTemps = floorRooms.map((d) => heatValue(d, heatMetric));
-  const rawMin = floorTemps.length > 0 ? Math.min(...floorTemps) : 22;
-  const rawMax = floorTemps.length > 0 ? Math.max(...floorTemps) : 30;
-  const spread = rawMax - rawMin;
-  const colorOpts = {
-    minC: spread < 0.5 ? rawMin - 1 : rawMin,
-    maxC: spread < 0.5 ? rawMax + 1 : rawMax,
-  };
+  const floorTemps = floorRooms.map((d) => heatValue(d, heatMetric, unit));
+  const rawMin = floorTemps.length > 0 ? Math.min(...floorTemps) : unit === "f" ? 72 : 22;
+  const rawMax = floorTemps.length > 0 ? Math.max(...floorTemps) : unit === "f" ? 86 : 30;
+  const colorOpts = colorScaleDomain(rawMin, rawMax, unit);
 
   return (
     <div className="flex h-screen w-screen bg-neutral-900 text-white">
       <SidePanel
         floor={floor}
         stats={stats}
+        unit={unit}
         heatMetric={heatMetric}
         onHeatMetricChange={setHeatMetric}
+        colorOpts={colorOpts}
       />
 
       <main className="relative flex-1 overflow-hidden bg-neutral-100">
@@ -172,12 +194,13 @@ export default function FloorView() {
               {/* Node layer — coords from phase JSON node_x / node_y. */}
               <div className="absolute inset-0">
                 {floorRooms.map((d) => {
-                  const tempC = heatValue(d, heatMetric);
+                  const temp = heatValue(d, heatMetric, unit);
                   return (
                     <RoomNode
                       key={d.meta.room}
                       meta={d.meta}
-                      avgTempC={tempC}
+                      temp={temp}
+                      unit={unit}
                       colorOpts={colorOpts}
                       active={selectedRoom === d.meta.room}
                       onClick={() => setSelectedRoom(d.meta.room)}
@@ -190,21 +213,19 @@ export default function FloorView() {
               {selectedData && (
                 <RoomPopup
                   data={selectedData}
-                  controlReadings={
-                    controlRoom !== null && controlRoom !== selectedRoom
-                      ? controlReadings
-                      : null
-                  }
                   outdoorReadings={
                     selectedData.meta.role === "outdoor_courtyard"
                       ? []
                       : outdoorReadings
                   }
+                  outdoorLabel={outdoorLabel}
                   kestrelReadings={
                     selectedRoom !== null
                       ? kestrelRoomData[selectedRoom]
                       : undefined
                   }
+                  unit={unit}
+                  yDomain={chartYDomain ?? undefined}
                   onClose={() => setSelectedRoom(null)}
                 />
               )}

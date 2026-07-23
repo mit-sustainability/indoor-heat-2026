@@ -1,3 +1,6 @@
+/** Which device series drives room metrics, colors, and the primary chart line. */
+export type PrimaryDevice = "hobo" | "kestrel";
+
 export const PHASES = [
   {
     id: "phase1",
@@ -33,11 +36,14 @@ export const PHASES = [
     manifest: "/data/heat_event/manifest.json",
     description:
       "Monitoring during a heat event, comparing closed windows against partial open with a window fan running 24/7.",
+    /** Prefer Kestrel for room metrics / color; chart still plots HOBO + Kestrel. */
+    primaryDevice: "kestrel" as const,
   },
 ] as const;
 
 export type PhaseId = typeof PHASES[number]["id"];
 export const DEFAULT_PHASE: PhaseId = "phase1";
+export const DEFAULT_PRIMARY_DEVICE: PrimaryDevice = "hobo";
 
 export function phaseManifest(id: string): string {
   return PHASES.find((p) => p.id === id)?.manifest ?? PHASES[0].manifest;
@@ -45,4 +51,11 @@ export function phaseManifest(id: string): string {
 
 export function phaseById(id: string) {
   return PHASES.find((p) => p.id === id) ?? PHASES[0];
+}
+
+export function phasePrimaryDevice(id: string): PrimaryDevice {
+  const phase = phaseById(id);
+  return "primaryDevice" in phase && phase.primaryDevice
+    ? phase.primaryDevice
+    : DEFAULT_PRIMARY_DEVICE;
 }
