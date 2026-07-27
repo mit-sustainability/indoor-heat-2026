@@ -194,7 +194,7 @@ export default function TempTrajectoryChart(props: Props) {
             unit={symbol}
             domain={props.yDomain ?? ["dataMin - 1", "dataMax + 1"]}
             ticks={yTicks}
-            tickFormatter={(v) => Number(v).toFixed(1)}
+            tickFormatter={(v) => Number(v).toFixed(0)}
           />
           <Tooltip
             labelFormatter={(v) => new Date(v as string).toLocaleString()}
@@ -228,7 +228,7 @@ export default function TempTrajectoryChart(props: Props) {
             strokeWidth={1.5}
             strokeDasharray="4 2"
             dot={false}
-            name={props.outdoorLabel ?? "Outdoor (avg)"}
+            name={props.outdoorLabel ?? "Outdoor"}
             hide={!hasOutdoor}
             isAnimationActive
             animationDuration={LINE_ANIMATION_MS}

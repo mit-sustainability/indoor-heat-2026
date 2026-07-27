@@ -32,8 +32,8 @@ export interface TransformedData {
 }
 
 const OUTDOOR_ROOMS = new Set(['courtyard', 'penthouse', 'kresge']);
-const DEFAULT_OUTDOOR_LABEL = 'Outdoor (avg)';
-const KRESGE_OUTDOOR_LABEL = 'Outdoor (avg) — Kresge Oval';
+const DEFAULT_OUTDOOR_LABEL = 'Outdoor';
+const KRESGE_OUTDOOR_LABEL = 'Outdoor (Kresge)';
 
 /** Night is 20:00–09:00; daytime is everything else (09:00–20:00). */
 function isDaytime(iso: string): boolean {
