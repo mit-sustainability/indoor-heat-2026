@@ -104,14 +104,9 @@ function normalizeMetadata(raw: PhaseMetadata): PhaseMetadata {
   };
 }
 
-/** Load readings only (tests / callers that do not need metadata). */
-export async function loadReadings(manifestUrl: string): Promise<SensorReading[]> {
-  const { readings } = await loadPhaseData(manifestUrl);
-  return readings;
-}
-
-/** Load readings + phase metadata (interventions catalog + sensor meta). */
-export async function loadPhaseData(manifestUrl: string): Promise<PhaseData> {
+async function fetchManifestAndReadings(
+  manifestUrl: string,
+): Promise<{ manifest: Manifest; readings: SensorReading[] }> {
   const manifestRes = await fetch(manifestUrl);
   if (!manifestRes.ok) throw new Error(`manifest ${manifestRes.status}`);
   const manifest = await readJson<Manifest>(manifestRes, manifestUrl);
@@ -122,6 +117,18 @@ export async function loadPhaseData(manifestUrl: string): Promise<PhaseData> {
   const readingsRes = await fetch(readingsUrl);
   if (!readingsRes.ok) throw new Error(`readings ${readingsRes.status}`);
   const readings = await readJson<SensorReading[]>(readingsRes, readingsUrl);
+  return { manifest, readings };
+}
+
+/** Load readings only (tests / callers that do not need metadata). */
+export async function loadReadings(manifestUrl: string): Promise<SensorReading[]> {
+  const { readings } = await fetchManifestAndReadings(manifestUrl);
+  return readings;
+}
+
+/** Load readings + phase metadata (interventions catalog + sensor meta). */
+export async function loadPhaseData(manifestUrl: string): Promise<PhaseData> {
+  const { manifest, readings } = await fetchManifestAndReadings(manifestUrl);
 
   const metadataUrl = manifest.files.metadata;
   if (!metadataUrl) {

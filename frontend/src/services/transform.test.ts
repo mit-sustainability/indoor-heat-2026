@@ -53,7 +53,7 @@ describe('transformReadings', () => {
     expect(outdoorReadings).toHaveLength(2);
     expect(outdoorReadings[0].temperatureF).toBe(84.47);
     expect(outdoorReadings[0].temperatureC).toBe(29.15);
-    expect(outdoorLabel).toBe('Outdoor (avg) — Kresge Oval');
+    expect(outdoorLabel).toBe('Outdoor (Kresge)');
   });
 
   it('places nodes using node_x / node_y from the JSON', () => {

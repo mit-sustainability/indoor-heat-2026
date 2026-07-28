@@ -191,7 +191,11 @@ export function transformReadings(
 
     const rs: Reading[] = chartRaw.map(toReading);
     const metricRs: Reading[] = metricRaw.map(toReading);
-    const kept = metricRs.filter((r) => !r.skipped);
+    // Metrics/coloring exclude skipped readings, but if a room is entirely
+    // skipped, fall back to all readings so it still gets real numbers (and a
+    // sane node color) instead of a misleading 0°.
+    const nonSkipped = metricRs.filter((r) => !r.skipped);
+    const kept = nonSkipped.length > 0 ? nonSkipped : metricRs;
     const day = kept.filter((r) => isDaytime(r.timestamp));
     const night = kept.filter((r) => !isDaytime(r.timestamp));
     const stateSample =
