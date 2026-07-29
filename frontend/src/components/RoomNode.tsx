@@ -1,23 +1,26 @@
-import type { RoomMeta } from "../config/rooms";
+import { roomLabel, type RoomMeta } from "../config/rooms";
+import type { TempUnit } from "../config/tempUnit";
+import { tempUnitSymbol } from "../config/tempUnit";
 import { tempToColor, type ColorScaleOptions } from "../lib/colorScale";
 
 interface Props {
   meta: RoomMeta;
-  avgTempC: number;
+  temp: number;
+  unit: TempUnit;
   colorOpts: ColorScaleOptions;
   onClick: () => void;
   active: boolean;
 }
 
-export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }: Props) {
-  const color = tempToColor(avgTempC, colorOpts);
-  const label =
-    meta.role === "outdoor_courtyard" ? "Courtyard" : String(meta.room);
+export default function RoomNode({ meta, temp, unit, colorOpts, onClick, active }: Props) {
+  const color = tempToColor(temp, colorOpts);
+  const label = roomLabel(meta);
+  const symbol = tempUnitSymbol(unit);
   return (
     <button
       type="button"
       onClick={onClick}
-      className="absolute group"
+      className={`absolute group ${active ? "z-20" : "z-10 hover:z-30"}`}
       style={{
         left: `${meta.xNorm * 100}%`,
         top: `${meta.yNorm * 100}%`,
@@ -26,7 +29,9 @@ export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }:
       aria-label={
         meta.role === "outdoor_courtyard"
           ? "Courtyard sensor"
-          : `Room ${meta.room}`
+          : meta.room === "hallway"
+            ? "Hallway sensor"
+            : `Room ${meta.room}`
       }
     >
       {/* Pulsing halo */}
@@ -43,7 +48,8 @@ export default function RoomNode({ meta, avgTempC, colorOpts, onClick, active }:
       />
       {/* Room number tooltip */}
       <span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-900/90 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100">
-        {label} · {avgTempC.toFixed(1)}°C
+        {label} · {temp.toFixed(1)}
+        {symbol}
       </span>
     </button>
   );

@@ -150,7 +150,7 @@ def _load_sensor_metadata(dropbox_res: "DropboxResource", config_file_path: str)
             "orientation": meta.get("orientation"),
             "window_state": meta.get("window_state"),
             "blinds_state": meta.get("blinds_state"),
-            "note": meta.get("note"),
+            "fan": meta.get("fan"),
             "sensor_photo": meta.get("sensor_photo"),
             "window_photo": meta.get("window_photo"),
             "node_x": meta.get("node_x"),
@@ -243,6 +243,8 @@ def _write_phase_export(output_dir: Path, df: pd.DataFrame, now: datetime, brows
             "window_state": row.get("window_state"),
             "blinds_state": row.get("blinds_state"),
         }
+        if pd.notna(row.get("fan")):
+            rec["fan"] = str(row["fan"]).strip()
         if pd.notna(row.get("wbgt_f")):
             rec["wbgt_f"] = round(float(row["wbgt_f"]), 3)
         if pd.notna(row.get("node_x")):
@@ -261,9 +263,16 @@ def _write_phase_export(output_dir: Path, df: pd.DataFrame, now: datetime, brows
         if old != readings_path:
             old.unlink()
 
+    # metadata.json is an optional, hand-authored per-phase override file; only
+    # advertise it in the manifest when it actually exists, otherwise the frontend
+    # would fetch a 404 and fail the phase load. (It falls back to defaults when absent.)
+    files = {"readings": browser_path}
+    if (output_dir / "metadata.json").exists():
+        files["metadata"] = f"{browser_base}/metadata.json"
+
     manifest = {
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "files": {"readings": browser_path},
+        "files": files,
     }
     with tempfile.NamedTemporaryFile(mode="w", dir=output_dir, suffix=".tmp", delete=False) as tf:
         tf.write(json.dumps(manifest, indent=2))

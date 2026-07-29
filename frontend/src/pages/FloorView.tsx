@@ -2,14 +2,26 @@ import { useRef, useState, useEffect } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import { FLOORS, type FloorNumber } from "../config/floors";
-import { DEFAULT_PHASE, phaseManifest } from "../config/phases";
-import { roomsForFloor, CONTROL_ROOMS } from "../config/rooms";
-import { loadReadings } from "../services/data";
-import { transformReadings, computeFloorStats, type TransformedData } from "../services/transform";
+import {
+  DEFAULT_HEAT_METRIC,
+  heatValue,
+  type HeatMetric,
+} from "../config/heatMetrics";
+import { DEFAULT_PHASE, phaseManifest, phasePrimaryDevice } from "../config/phases";
+import { parseTempUnit } from "../config/tempUnit";
+import { loadPhaseData } from "../services/data";
+import {
+  transformReadings,
+  computeFloorStats,
+  computeFloorChartDomain,
+  roomsOnFloor,
+  type TransformedData,
+} from "../services/transform";
 
 import SidePanel from "../components/SidePanel";
 import RoomNode from "../components/RoomNode";
 import RoomPopup from "../components/RoomPopup";
+import { colorScaleDomain } from "../lib/colorScale";
 import { useElementSize, computeFitBox } from "../lib/useElementSize";
 
 // Native pixel dimensions of the rendered floor plan PNGs.
@@ -34,16 +46,19 @@ function parseFloor(raw: string | undefined): FloorNumber | null {
   if (!raw) return null;
   const n = Number(raw);
   if (!Number.isInteger(n)) return null;
-  if (n < 1 || n > 7) return null;
+  if (!FLOORS.some((f) => f.floor === n)) return null;
   return n as FloorNumber;
 }
 
 export default function FloorView() {
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const manifestUrl = phaseManifest(searchParams.get("phase") ?? DEFAULT_PHASE);
+  const phase = searchParams.get("phase") ?? DEFAULT_PHASE;
+  const unit = parseTempUnit(searchParams.get("unit"));
+  const manifestUrl = phaseManifest(phase);
   const floor = parseFloor(params.floor);
-  const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [heatMetric, setHeatMetric] = useState<HeatMetric>(DEFAULT_HEAT_METRIC);
   const [data, setData] = useState<TransformedData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -51,49 +66,76 @@ export default function FloorView() {
   const fit = computeFitBox(stageSize.width, stageSize.height, PLAN_RATIO);
 
   useEffect(() => {
-    loadReadings(manifestUrl)
-      .then(readings => setData(transformReadings(readings)))
-      .catch(err => setError(String(err)));
-  }, [manifestUrl]);
+    setSelectedRoom(null);
+    setData(null);
+    setError(null);
+    loadPhaseData(manifestUrl)
+      .then(({ readings, metadata }) =>
+        setData(
+          transformReadings(readings, metadata, {
+            primaryDevice: phasePrimaryDevice(phase),
+          }),
+        ),
+      )
+      .catch((err) => setError(String(err)));
+  }, [manifestUrl, phase]);
+
+  useEffect(() => {
+    setSelectedRoom(null);
+  }, [floor]);
 
   if (floor === null) {
     return <Navigate to="/" replace />;
   }
 
   const meta = FLOORS.find((f) => f.floor === floor)!;
-  const rooms = roomsForFloor(floor);
   const roomData = data?.roomData ?? {};
+  const floorRooms = roomsOnFloor(roomData, floor);
   const selectedData = selectedRoom !== null ? roomData[selectedRoom] ?? null : null;
-  const controlRoom = CONTROL_ROOMS[floor];
-  const controlReadings = data?.controlReadings[floor] ?? null;
   const outdoorReadings = data?.outdoorReadings ?? [];
+  const outdoorLabel = data?.outdoorLabel ?? "Outdoor (avg)";
   const kestrelRoomData = data?.kestrelRoomData ?? {};
   const stats = data
     ? computeFloorStats(data.roomData, floor)
-    : { avgTempC: null, avgHumidity: null, lastUpdated: null };
+    : {
+        avgPeakDaytimeC: null,
+        avgPeakDaytimeF: null,
+        avgNighttimeC: null,
+        avgNighttimeF: null,
+        avgHumidity: null,
+        lastUpdated: null,
+      };
 
-  // Per-floor min/max for node colour scale.
-  const floorAvgTemps = rooms
-    .map(r => roomData[r.room])
-    .filter(Boolean)
-    .map(d => (d.avgDaytimeC + d.avgNighttimeC) / 2);
-  const rawMin = floorAvgTemps.length > 0 ? Math.min(...floorAvgTemps) : 22;
-  const rawMax = floorAvgTemps.length > 0 ? Math.max(...floorAvgTemps) : 30;
-  const spread = rawMax - rawMin;
-  const colorOpts = {
-    minC: spread < 0.5 ? rawMin - 1 : rawMin,
-    maxC: spread < 0.5 ? rawMax + 1 : rawMax,
-  };
+  // Shared popup chart Y-axis for every node on this floor.
+  const chartYDomain = data
+    ? computeFloorChartDomain(data.roomData, floor, unit, {
+        outdoor: outdoorReadings,
+        kestrelByRoom: kestrelRoomData,
+      })
+    : null;
+
+  // Per-floor min/max for node colour scale (only rooms present in this phase).
+  const floorTemps = floorRooms.map((d) => heatValue(d, heatMetric, unit));
+  const rawMin = floorTemps.length > 0 ? Math.min(...floorTemps) : unit === "f" ? 72 : 22;
+  const rawMax = floorTemps.length > 0 ? Math.max(...floorTemps) : unit === "f" ? 86 : 30;
+  const colorOpts = colorScaleDomain(rawMin, rawMax, unit);
 
   return (
     <div className="flex h-screen w-screen bg-neutral-900 text-white">
-      <SidePanel floor={floor} stats={stats} />
+      <SidePanel
+        floor={floor}
+        stats={stats}
+        unit={unit}
+        heatMetric={heatMetric}
+        onHeatMetricChange={setHeatMetric}
+        colorOpts={colorOpts}
+      />
 
       <main className="relative flex-1 overflow-hidden bg-neutral-100">
-        {rooms.length === 0 && (
+        {data && floorRooms.length === 0 && (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
             <p className="rounded-md bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow">
-              No sensors deployed on floor {floor}.
+              No sensors deployed on floor {floor} during this phase.
             </p>
           </div>
         )}
@@ -149,21 +191,19 @@ export default function FloorView() {
                 </p>
               </div>
 
-              {/* Node layer — coords are normalized to this box, which is the
-                  exact rendered plan rect. */}
+              {/* Node layer — coords from phase JSON node_x / node_y. */}
               <div className="absolute inset-0">
-                {rooms.map((r) => {
-                  const d = roomData[r.room];
-                  if (!d) return null;
-                  const avgTemp = (d.avgDaytimeC + d.avgNighttimeC) / 2;
+                {floorRooms.map((d) => {
+                  const temp = heatValue(d, heatMetric, unit);
                   return (
                     <RoomNode
-                      key={r.room}
-                      meta={r}
-                      avgTempC={avgTemp}
+                      key={d.meta.room}
+                      meta={d.meta}
+                      temp={temp}
+                      unit={unit}
                       colorOpts={colorOpts}
-                      active={selectedRoom === r.room}
-                      onClick={() => setSelectedRoom(r.room)}
+                      active={selectedRoom === d.meta.room}
+                      onClick={() => setSelectedRoom(d.meta.room)}
                     />
                   );
                 })}
@@ -173,17 +213,19 @@ export default function FloorView() {
               {selectedData && (
                 <RoomPopup
                   data={selectedData}
-                  controlReadings={
-                    controlRoom !== null && controlRoom !== selectedRoom
-                      ? controlReadings
-                      : null
-                  }
                   outdoorReadings={
                     selectedData.meta.role === "outdoor_courtyard"
                       ? []
                       : outdoorReadings
                   }
-                  kestrelReadings={selectedRoom !== null ? kestrelRoomData[selectedRoom] : undefined}
+                  outdoorLabel={outdoorLabel}
+                  kestrelReadings={
+                    selectedRoom !== null
+                      ? kestrelRoomData[selectedRoom]
+                      : undefined
+                  }
+                  unit={unit}
+                  yDomain={chartYDomain ?? undefined}
                   onClose={() => setSelectedRoom(null)}
                 />
               )}

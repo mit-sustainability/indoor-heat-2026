@@ -1,31 +1,44 @@
 // Mock readings for local development. Generates a few days of hourly temp +
-// humidity for each instrumented room, indoor control rooms, and the courtyard
-// sensor. Replace with real API calls when a backend is added.
+// humidity for each instrumented room and the courtyard sensor.
+// Replace with real API calls when a backend is added.
 
-import { ROOMS, CONTROL_ROOMS, type RoomMeta } from "../config/rooms";
+import { type RoomMeta } from "../config/rooms";
 import type { FloorNumber } from "../config/floors";
+import type { Intervention } from "../config/interventions";
+
+export type { Intervention };
 
 export interface Reading {
   timestamp: string; // ISO
   temperatureC: number;
+  temperatureF: number;
   humidityPct: number;
+  /** From export heat_index_c / heat_index_f — never converted in the frontend. */
+  heatIndexC?: number;
+  heatIndexF?: number;
   wbgtF?: number;
+  /** Marked omitted in the export; still plotted, shaded on the chart. */
+  skipped?: boolean;
 }
 
 export interface RoomData {
   meta: RoomMeta;
+  /** Primary chart series (HOBO when present). */
   readings: Reading[];
+  /**
+   * When set, peaks / phase extrema use these instead of `readings`
+   * (e.g. heat event prefers Kestrel for metrics while still plotting HOBO).
+   */
+  metricReadings?: Reading[];
+  peakDaytimeC: number;
+  peakDaytimeF: number;
   avgDaytimeC: number;
+  avgDaytimeF: number;
   avgNighttimeC: number;
+  avgNighttimeF: number;
   avgHumidity: number;
   lastCollected: string;
   interventions: Intervention[];
-}
-
-export interface Intervention {
-  label: string;
-  emoji: string;
-  description: string;
 }
 
 const HOURS = 24 * 5; // 5 days of hourly data
@@ -54,44 +67,30 @@ function generateReadings(
     const temp = baseTemp + diurnal + noise;
     const humidity =
       baseHumidity - diurnal * 1.5 + (rand() - 0.5) * 4;
+    const temperatureC = +temp.toFixed(2);
     readings.push({
       timestamp: t.toISOString(),
-      temperatureC: +temp.toFixed(2),
+      temperatureC,
+      temperatureF: +((temperatureC * 9) / 5 + 32).toFixed(2),
       humidityPct: +Math.max(20, Math.min(80, humidity)).toFixed(1),
     });
   }
   return readings;
 }
 
+/** Night is 20:00–09:00; daytime is everything else (09:00–20:00). */
 function dayMask(reading: Reading): boolean {
   const h = new Date(reading.timestamp).getHours();
-  return h >= 7 && h < 19;
+  return h >= 9 && h < 20;
 }
 
 function mean(xs: number[]): number {
-  return xs.reduce((a, b) => a + b, 0) / xs.length;
+  return xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
-export const INTERVENTION_SETS: Record<number, Intervention[]> = {
-  304: [],
-  309: [
-    { label: "Box fan", emoji: "💨", description: "Medium speed, toward window" },
-  ],
-  314: [
-    { label: "Reflective film", emoji: "🪞", description: "North-facing window" },
-  ],
-  504: [
-    { label: "Box fan", emoji: "💨", description: "Set to medium, oriented toward window" },
-  ],
-  514: [],
-  704: [
-    { label: "Window AC unit", emoji: "❄️", description: "5,000 BTU unit installed 2026-05-01" },
-  ],
-  709: [],
-  714: [
-    { label: "Blackout blinds", emoji: "🪟", description: "Closed 10:00–18:00 daily" },
-  ],
-};
+function peak(xs: number[]): number {
+  return xs.length === 0 ? 0 : Math.max(...xs);
+}
 
 function buildRoomData(meta: RoomMeta, seed: number, baseTemp: number, baseHumidity: number): RoomData {
   const readings = generateReadings(baseTemp, baseHumidity, seed);
@@ -100,22 +99,12 @@ function buildRoomData(meta: RoomMeta, seed: number, baseTemp: number, baseHumid
   return {
     meta,
     readings,
+    peakDaytimeC: +peak(day.map((r) => r.temperatureC)).toFixed(2),
+    peakDaytimeF: +peak(day.map((r) => r.temperatureF)).toFixed(2),
     avgDaytimeC: +mean(day.map((r) => r.temperatureC)).toFixed(2),
+    avgDaytimeF: +mean(day.map((r) => r.temperatureF)).toFixed(2),
     avgNighttimeC: +mean(night.map((r) => r.temperatureC)).toFixed(2),
-    avgHumidity: +mean(readings.map((r) => r.humidityPct)).toFixed(1),
-    lastCollected: readings[readings.length - 1].timestamp,
-    interventions: INTERVENTION_SETS[meta.room] ?? [],
-  };
-}
-
-function buildRoomDataFromReadings(meta: RoomMeta, readings: Reading[]): RoomData {
-  const day = readings.filter(dayMask);
-  const night = readings.filter((r) => !dayMask(r));
-  return {
-    meta,
-    readings,
-    avgDaytimeC: +mean(day.map((r) => r.temperatureC)).toFixed(2),
-    avgNighttimeC: +mean(night.map((r) => r.temperatureC)).toFixed(2),
+    avgNighttimeF: +mean(night.map((r) => r.temperatureF)).toFixed(2),
     avgHumidity: +mean(readings.map((r) => r.humidityPct)).toFixed(1),
     lastCollected: readings[readings.length - 1].timestamp,
     interventions: [],
@@ -123,56 +112,44 @@ function buildRoomDataFromReadings(meta: RoomMeta, readings: Reading[]): RoomDat
 }
 
 const BASE_TEMP_BY_FLOOR: Record<number, number> = {
-  1: 22.0,
   3: 24.0,
   5: 26.5,
   7: 28.0,
 };
 
-const ROOM_OFFSET: Record<number, number> = {
-  304: 1.8,
-  309: 1.2,
-  314: 0.5,
-  504: 2.2,
-  514: 0.9,
-  704: 1.6,
-  709: 2.4,
-  714: 0.7,
+const ROOM_OFFSET: Record<string, number> = {
+  "304": 1.8,
+  "309": 1.2,
+  "314": 0.5,
+  "504": 2.2,
+  "514": 0.9,
+  "704": 1.6,
+  "709": 2.4,
+  "714": 0.7,
 };
 
-export const COURTYARD_READINGS: Reading[] = generateReadings(22.0, 65, 8888).map((r) => ({
-  ...r,
-  temperatureC: +(r.temperatureC + Math.sin(((new Date(r.timestamp).getHours() - 6) / 24) * Math.PI * 2) * 3.5).toFixed(2),
-}));
+/** Demo room set used only by mock data helpers (not FloorView). */
+const MOCK_ROOMS: RoomMeta[] = [
+  { room: "304", floor: 3, xNorm: 0.314, yNorm: 0.377, orientation: "East facing", role: "room" },
+  { room: "309", floor: 3, xNorm: 0.224, yNorm: 0.639, orientation: "South facing", role: "room" },
+  { room: "314", floor: 3, xNorm: 0.137, yNorm: 0.377, orientation: "West facing", role: "room" },
+  { room: "504", floor: 5, xNorm: 0.314, yNorm: 0.377, orientation: "East facing", role: "room" },
+  { room: "514", floor: 5, xNorm: 0.137, yNorm: 0.377, orientation: "West facing", role: "room" },
+  { room: "704", floor: 7, xNorm: 0.314, yNorm: 0.377, orientation: "East facing", role: "room" },
+  { room: "709", floor: 7, xNorm: 0.224, yNorm: 0.639, orientation: "South facing", role: "room" },
+  { room: "714", floor: 7, xNorm: 0.137, yNorm: 0.377, orientation: "West facing", role: "room" },
+];
 
-export const ROOM_DATA: Record<number, RoomData> = Object.fromEntries(
-  ROOMS.filter((meta) => meta.role === "room").map((meta, i) => {
+export const ROOM_DATA: Record<string, RoomData> = Object.fromEntries(
+  MOCK_ROOMS.filter((meta) => meta.role === "room").map((meta, i) => {
     const base = BASE_TEMP_BY_FLOOR[meta.floor] ?? 25;
     const offset = ROOM_OFFSET[meta.room] ?? 1;
     return [meta.room, buildRoomData(meta, 100 + i * 17, base + offset, 52)];
   }),
 );
 
-const courtyardMeta = ROOMS.find((r) => r.role === "outdoor_courtyard");
-if (courtyardMeta) {
-  ROOM_DATA[courtyardMeta.room] = buildRoomDataFromReadings(
-    courtyardMeta,
-    COURTYARD_READINGS,
-  );
-}
-
-export const CONTROL_READINGS: Record<FloorNumber, Reading[] | null> = {
-  1: null,
-  2: null,
-  3: generateReadings(24.0, 50, 7001),
-  4: null,
-  5: generateReadings(26.3, 50, 7005),
-  6: null,
-  7: generateReadings(27.5, 50, 7007),
-};
-
 export function floorAverages(floor: FloorNumber) {
-  const rooms = ROOMS.filter((r) => r.floor === floor && r.role === "room");
+  const rooms = MOCK_ROOMS.filter((r) => r.floor === floor && r.role === "room");
   if (rooms.length === 0) {
     return { avgTempC: null, avgHumidity: null, lastUpdated: null };
   }
@@ -186,5 +163,3 @@ export function floorAverages(floor: FloorNumber) {
       .reverse()[0],
   };
 }
-
-export { CONTROL_ROOMS };
